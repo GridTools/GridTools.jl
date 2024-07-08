@@ -241,6 +241,7 @@ function postprocess_definition(foast_node, closure_vars, annotations)
     return foast_node
 end
 
+# TODO(tehrengruber): unify with convert_type
 py_args(args::Union{Base.Pairs, Dict}) =
     Dict(i.first => convert_type(i.second) for i in args)
 py_args(args::Tuple) = [convert_type(arg) for arg in args]
@@ -282,6 +283,7 @@ function convert_type(a::Connectivity)
 
     # account for different indexing in python
     return gtx.NeighborTableOffsetProvider(
+        #TODO(lorenzovarese): fix performance (conversion from 0-index to 1-index) (caching or directly store the 0-index version of the connectivity)
         ifelse.(a.data .!= -1, a.data .- 1, a.data),
         target_dim,
         source_dim,
