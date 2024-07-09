@@ -75,7 +75,8 @@ function setup_simple_connectivity()
 
     offset_provider = Dict{String,Connectivity}(
         "E2C" => E2C_offset_provider,
-        "C2E" => C2E_offset_provider
+        "C2E" => C2E_offset_provider,
+        "E2CDim" => E2C_offset_provider #TODO(lorenzovarese) this is required for the embedded backend and the python already uses E2C
     )
 
     return ConnectivityData(edge_to_cell_table, cell_to_edge_table, E2C_offset_provider, C2E_offset_provider, offset_provider)
@@ -199,8 +200,6 @@ end
 # ========================================
 
 function test_gt4py_fo_exec()
-    include("mesh_definitions.jl")
-
     testwrapper(nothing, (args...) -> test_fo_addition(args...), "embedded")
     testwrapper(nothing, (args...) -> test_fo_addition(args...), "py")
 
@@ -210,7 +209,7 @@ function test_gt4py_fo_exec()
     testwrapper(setup_simple_connectivity, (args...) -> test_fo_remapping(args...), "embedded")
     testwrapper(setup_simple_connectivity, (args...) -> test_fo_remapping(args...), "py")
 
-    # testwrapper(setup_simple_connectivity, (args...) -> test_fo_neighbor_sum(args...), "embedded") #TODO(lorenzovarese) fixing access to global mesh_definitions 
+    testwrapper(setup_simple_connectivity, (args...) -> test_fo_neighbor_sum(args...), "embedded") #TODO(lorenzovarese) fixing access to global mesh_definitions 
     # testwrapper(setup_simple_connectivity, (args...) -> test_fo_neighbor_sum(args...), "py")
 end
 
