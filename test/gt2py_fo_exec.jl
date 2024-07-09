@@ -20,46 +20,71 @@ macro to_py(expr::Expr)
 end
 
 # ========================================
+# ============== Utility =================
+# ========================================
+
+struct ConnectivityData
+    edge_to_cell_table::Matrix{Integer}
+    cell_to_edge_table::Matrix{Integer}
+    E2C_offset_provider::Connectivity
+    C2E_offset_provider::Connectivity
+    offset_provider::Dict{String, Connectivity}
+end
+
+function testwrapper(setupfunc::Union{Function,Nothing}, testfunc::Function, args...)
+    if setupfunc === nothing
+        testfunc(args...)
+    else
+        data = setupfunc()
+        testfunc(data, args...)
+    end
+end
+
+# ========================================
 # ============== Setup ===================
 # ========================================
 
-edge_to_cell_table = [
-    [1  -1];
-    [3  -1];
-    [3  -1];
-    [4  -1];
-    [5  -1];
-    [6  -1];
-    [1  6];
-    [1  2];
-    [2  3];
-    [2  4];
-    [4  5];
-    [5  6]
-]
+function setup_simple_connectivity()
+    edge_to_cell_table = [
+        [1  -1];
+        [3  -1];
+        [3  -1];
+        [4  -1];
+        [5  -1];
+        [6  -1];
+        [1  6];
+        [1  2];
+        [2  3];
+        [2  4];
+        [4  5];
+        [5  6]
+    ]
 
-cell_to_edge_table = [
-    [1   7   8];
-    [8   9  10];
-    [2   3   9];
-    [4  10  11];
-    [5  11  12];
-    [6   7  12]
-]
+    cell_to_edge_table = [
+        [1   7   8];
+        [8   9  10];
+        [2   3   9];
+        [4  10  11];
+        [5  11  12];
+        [6   7  12]
+    ]
 
-E2C_offset_provider = Connectivity(edge_to_cell_table, Cell, Edge, 2)
-C2E_offset_provider = Connectivity(cell_to_edge_table, Edge, Cell, 3)
+    E2C_offset_provider = Connectivity(edge_to_cell_table, Cell, Edge, 2)
+    C2E_offset_provider = Connectivity(cell_to_edge_table, Edge, Cell, 3)
 
-offset_provider = Dict{String, Connectivity}(
-                   "E2C" => E2C_offset_provider,
-                   "C2E" => C2E_offset_provider
-                )
+    offset_provider = Dict{String, Connectivity}(
+                    "E2C" => E2C_offset_provider,
+                    "C2E" => C2E_offset_provider
+                    )
+
+    return ConnectivityData(edge_to_cell_table, cell_to_edge_table, E2C_offset_provider, C2E_offset_provider, offset_provider)
+end
 
 # ========================================
-# ============== Tests ===================
+# ========= Tests Definition =============
 # ========================================
 
-function test_gt4py_fo_exec()
+function test_fo_addition(backend::String)
     a = Field(Cell, collect(1.:15.))
     b = Field(Cell, collect(-1.:-1:-15.))
     out = Field(Cell, zeros(Float64, 15))
@@ -68,11 +93,11 @@ function test_gt4py_fo_exec()
         return a .+ b
     end
 
-    fo_addition(a, b, backend = "py", out = out)
+    fo_addition(a, b, backend = backend, out = out)
     @test all(out.data .== 0)
+end
 
-    # ------------------------------------------------
-
+function test_fo_nested_if_else(backend::String)
     a = Field(Cell, collect(Int32, 1:15))  # TODO(tehrengruber): if we don't use the right dtype here we get a horrible error in python
     out = Field(Cell, zeros(Int32, 15))
 
@@ -99,20 +124,93 @@ function test_gt4py_fo_exec()
         return tmp
     end
 
-    @test @to_py fo_nested_if_else(a, backend = "embedded", out = out)
+    fo_nested_if_else(a, backend = backend, out = out)
     @test all(out.data .== collect(22:36))
+end
 
-    # ------------------------------------------------
+function test_fo_remapping(data::ConnectivityData, backend::String)
     a = Field(Cell, collect(1.:15.))
     out = Field(Edge, zeros(Float64, 12))
-    expected_output = a[edge_to_cell_table[:, 1]] # First column of the edge to cell connectivity table
+    expected_output = a[data.edge_to_cell_table[:, 1]] # First column of the edge to cell connectivity table
 
     @field_operator function fo_remapping(a::Field{Tuple{Cell_}, Float64})::Field{Tuple{Edge_}, Float64}
         return a(E2C[1])
     end
 
-    fo_remapping(a, offset_provider=offset_provider, backend = "embedded", out = out)
+    fo_remapping(a, offset_provider = data.offset_provider, backend = backend, out = out)
     @test all(out.data .== expected_output)
+end
+
+function test_fo_neighbor_sum(backend::String)
+    a = Field(Cell, collect(1.:15.))
+    out = Field(Edge, zeros(Float64, 12))
+
+    @field_operator function fo_neighbor_sum(a::Field{Tuple{Cell_}, Float64})::Field{Tuple{Edge_}, Float64}
+        return neighbor_sum(a(E2C), axis=E2CDim)
+    end
+
+    @test @to_py fo_neighbor_sum(a, offset_provider=offset_provider, backend = "py", out = out)
+end
+
+function test_fo_max_over(backend::String)
+    
+end
+
+function test_fo_min_over(backend::String)
+    
+end
+
+function test_fo_simple_broadcast(backend::String)
+    
+end
+
+function test_fo_scalar_broadcast(backend::String)
+    
+end
+
+function test_fo_where(backend::String)
+    
+end
+
+function test_fo_astype(backend::String)
+    
+end
+
+function test_fo_sin(backend::String)
+    
+end
+
+function test_fo_asinh(backend::String)
+    
+end
+
+function test_fo_offset_array(backend::String)
+    
+end
+
+function test_nested_fo(backend::String)
+    
+end
+
+# ========================================
+# ========== Test Executions =============
+# ========================================
+
+function test_gt4py_fo_exec()
+    testwrapper(nothing, (args...) -> test_fo_addition(args...), "embedded")
+    testwrapper(nothing, (args...) -> test_fo_addition(args...), "py")
+
+    testwrapper(nothing, (args...) -> test_fo_nested_if_else(args...), "embedded")
+    testwrapper(nothing, (args...) -> test_fo_nested_if_else(args...), "py")
+
+    testwrapper(setup_simple_connectivity, (args...) -> test_fo_remapping(args...), "embedded")
+    testwrapper(setup_simple_connectivity, (args...) -> test_fo_remapping(args...), "py")
+end
+
+function test_gt4py_fo_exec_legacy()
+    # Set up locally to mimic the previous global behavior
+    data = setup_simple_connectivity()
+    offset_provider = data.offset_provider
 
     # ------------------------------------------------
     a = Field(Cell, collect(1.:15.))
@@ -235,10 +333,19 @@ function test_gt4py_fo_exec()
     b = Field(Cell, ones(15))
     out = Field(Cell, zeros(15))
 
+    @field_operator function fo_addition(a::Field{Tuple{Cell_}, Float64}, b::Field{Tuple{Cell_}, Float64})::Field{Tuple{Cell_}, Float64}
+        return a .+ b
+    end
+
     @field_operator function nested_fo(a::Field{Tuple{Cell_}, Float64}, b::Field{Tuple{Cell_}, Float64})::Field{Tuple{Cell_}, Float64}
         res = fo_addition(a, b)
         return res .+ a
     end
 end
 
-@testset "Testset GT2Py fo exec" test_gt4py_fo_exec()
+function run_all()
+    test_gt4py_fo_exec()
+    test_gt4py_fo_exec_legacy()
+end
+
+@testset "Testset GT2Py fo exec" run_all()
