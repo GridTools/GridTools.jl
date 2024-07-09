@@ -4,3 +4,4 @@ docs/build/
 .venv
 env_setup.sh
 .vscode
+.python-version
