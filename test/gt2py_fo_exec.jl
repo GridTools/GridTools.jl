@@ -19,7 +19,9 @@ macro to_py(expr::Expr)
     return res
 end
 
-# Setup ------------------------------------------------------------------------------------------
+# ========================================
+# ============== Setup ===================
+# ========================================
 
 edge_to_cell_table = [
     [1  -1];
@@ -45,7 +47,6 @@ cell_to_edge_table = [
     [6   7  12]
 ]
 
-
 E2C_offset_provider = Connectivity(edge_to_cell_table, Cell, Edge, 2)
 C2E_offset_provider = Connectivity(cell_to_edge_table, Edge, Cell, 3)
 
@@ -54,8 +55,10 @@ offset_provider = Dict{String, Connectivity}(
                    "C2E" => C2E_offset_provider
                 )
 
+# ========================================
+# ============== Tests ===================
+# ========================================
 
-# Tests ------------------------------------------------
 function test_gt4py_fo_exec()
     a = Field(Cell, collect(1.:15.))
     b = Field(Cell, collect(-1.:-1:-15.))
@@ -75,17 +78,17 @@ function test_gt4py_fo_exec()
 
     @field_operator function fo_nested_if_else(f::Field{Tuple{Cell_}, Int32})::Field{Tuple{Cell_}, Int32}
         tmp = f
-        if 1. .< 10.0
-            tmp = f .+ 1
+        if 1. < 10.0
+            tmp = f .+ Int32(1)
             if 30 > 5
-                tmp = tmp .+ 20
-                tmp = tmp .- 10
+                tmp = tmp .+ Int32(20)
+                tmp = tmp .- Int32(10)
             elseif 40 < 4
                 tmp = 4 == 5 ? tmp : tmp .- 100
             else 
                 tmp = tmp .* 5
             end
-            tmp = tmp .+ 10
+            tmp = tmp .+ Int32(10)
         elseif 10 < 20
             tmp = f .- 1
         else
@@ -96,17 +99,20 @@ function test_gt4py_fo_exec()
         return tmp
     end
 
-    @test @to_py fo_nested_if_else(a, backend = "py", out = out)
+    @test @to_py fo_nested_if_else(a, backend = "embedded", out = out)
+    @test all(out.data .== collect(22:36))
 
     # ------------------------------------------------
     a = Field(Cell, collect(1.:15.))
     out = Field(Edge, zeros(Float64, 12))
+    expected_output = a[edge_to_cell_table[:, 1]] # First column of the edge to cell connectivity table
 
     @field_operator function fo_remapping(a::Field{Tuple{Cell_}, Float64})::Field{Tuple{Edge_}, Float64}
         return a(E2C[1])
     end
 
-    @test @to_py fo_remapping(a, offset_provider=offset_provider, backend = "py", out = out)
+    fo_remapping(a, offset_provider=offset_provider, backend = "embedded", out = out)
+    @test all(out.data .== expected_output)
 
     # ------------------------------------------------
     a = Field(Cell, collect(1.:15.))
