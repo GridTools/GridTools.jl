@@ -76,14 +76,14 @@ function setup_simple_connectivity()
     offset_provider = Dict{String,Connectivity}(
         "E2C" => E2C_offset_provider,
         "C2E" => C2E_offset_provider,
-        "E2CDim" => E2C_offset_provider #TODO(lorenzovarese) this is required for the embedded backend and the python already uses E2C
+        "E2CDim" => E2C_offset_provider #TODO(lorenzovarese) this is required for the embedded backend (note: python already uses E2C)
     )
 
     return ConnectivityData(edge_to_cell_table, cell_to_edge_table, E2C_offset_provider, C2E_offset_provider, offset_provider)
 end
 
 # ========================================
-# ========= Tests Definition =============
+# ========= Test Definitions =============
 # ========================================
 
 function test_fo_addition(backend::String)
