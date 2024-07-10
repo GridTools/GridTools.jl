@@ -352,7 +352,7 @@ function test_fo_offset_array(backend::String)
         return A .+ B
     end
 
-    @test fo_offset_array(A, B, backend=backend, out=out) # Simply check if the execution is performed
+    @test @to_py fo_offset_array(A, B, backend=backend, out=out) # Simply check if the execution is performed
     println("test_fo_offset_array - backend->[", backend, "] - output: ", out.data)
     # @test out == expected_output
 end
