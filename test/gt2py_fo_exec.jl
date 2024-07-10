@@ -161,44 +161,137 @@ function test_fo_neighbor_sum(data::ConnectivityData, backend::String)
     @test out == expected_output
 end
 
-function test_fo_max_over(backend::String)
+function test_fo_max_over(data::ConnectivityData, backend::String)
+    a = Field(Cell, collect(1.0:15.0))
+    out = Field(Edge, zeros(Float64, 12))
 
+    @field_operator function fo_max_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
+        return max_over(a(E2C), axis=E2CDim)
+    end
+
+    fo_max_over(a, offset_provider=data.offset_provider, backend=backend, out=out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
-function test_fo_min_over(backend::String)
+function test_fo_min_over(data::ConnectivityData, backend::String)
+    a = Field(Cell, collect(1.0:15.0))
+    out = Field(Edge, zeros(Float64, 12))
 
+    @field_operator function fo_min_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
+        return min_over(a(E2C), axis=E2CDim)
+    end
+
+    fo_min_over(a, offset_provider=data.offset_provider, backend=backend, out=out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
 function test_fo_simple_broadcast(backend::String)
+    a = Field(Cell, collect(1.0:15.0))
+    out = Field((Cell, K), zeros(15, 5))
 
+    @field_operator function fo_simple_broadcast(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_,K_},Float64}
+        return broadcast(a, (Cell, K))
+    end
+
+    fo_simple_broadcast(a, backend=backend, out=out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
 function test_fo_scalar_broadcast(backend::String)
+    j_out = Field((), fill(0.0), (Cell, K))
+    py_out = Field((Cell, K), fill(0.0, (10, 10)))
 
+
+    @field_operator function fo_scalar_broadcast()::Field{Tuple{Cell_,K_},Float64}
+        return broadcast(5.0, (Cell, K))
+    end
+
+    fo_scalar_broadcast(backend=backend, out=py_out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
 function test_fo_where(backend::String)
+    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
+    b = Field((Cell, K), fill(-1.0, (6, 2)))
+    mask = Field((Cell, K), rand(Bool, (6, 2)))
+    out = Field((Cell, K), zeros(6, 2))
 
+    @field_operator function fo_where(mask::Field{Tuple{Cell_,K_},Bool}, a::Field{Tuple{Cell_,K_},Float64}, b::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
+        return where(mask, a, b)
+    end
+
+    fo_where(mask, a, b, backend=backend, out=out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
 function test_fo_astype(backend::String)
+    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
+    out = Field((Cell, K), zeros(Int64, (6, 2)))
 
+    @field_operator function fo_astype(a::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Int64}
+        return convert(Int64, a)
+    end
+
+    fo_astype(a, backend=backend, out=out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
 function test_fo_sin(backend::String)
+    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
+    out = Field((Cell, K), zeros((6, 2)))
 
+    @field_operator function fo_sin(a::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
+        return sin.(a)
+    end
+
+    fo_sin(a, backend=backend, out=out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
 function test_fo_asinh(backend::String)
+    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
+    out = Field((Cell, K), zeros((6, 2)))
 
+    @field_operator function fo_asinh(a::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
+        return asinh.(a)
+    end
+
+    fo_asinh(a, backend=backend, out=out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
 function test_fo_offset_array(backend::String)
+    # TODO OffsetArray is ignored for the moment
 
+    A = Field((Vertex, K), reshape(collect(1.0:15.0), 3, 5), origin=Dict(Vertex => -2, K => -1))
+    B = Field((K, Edge), reshape(ones(6), 3, 2))
+
+    out = Field((Vertex, K, Edge), zeros(3, 3, 2))
+
+    @field_operator function fo_offset_array(A::Field{Tuple{Vertex_,K_},Float64}, B::Field{Tuple{K_,Edge_},Float64})::Field{Tuple{Vertex_,K_,Edge_},Float64}
+        return A .+ B
+    end
+
+    fo_offset_array(A, B, backend=backend, out=out)
+    @test out == out # TODO(lorenzovarese): identify ground truth
 end
 
 function test_nested_fo(backend::String)
+    a = Field(Cell, collect(1.0:15.0))
+    b = Field(Cell, ones(15))
+    out = Field(Cell, zeros(15))
 
+    @field_operator function fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
+        return a .+ b
+    end
+
+    @field_operator function nested_fo(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
+        res = fo_addition(a, b)
+        return res .+ a
+    end
+
+    # Add invocation
+    @test out == out  # TODO(lorenzovarese): identify ground truth
 end
 
 # ========================================
@@ -217,147 +310,8 @@ function test_gt4py_fo_exec()
 
     testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "embedded")
     testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "py")
+
+    # TODO(lorenzovarese): add the missing ones
 end
 
-function test_gt4py_fo_exec_legacy()
-    # Set up locally to mimic the previous global behavior
-    data = setup_simple_connectivity()
-    offset_provider = data.offset_provider
-
-    # ------------------------------------------------
-    a = Field(Cell, collect(1.0:15.0))
-    out = Field(Edge, zeros(Float64, 12))
-
-    @field_operator function fo_neighbor_sum(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
-        return neighbor_sum(a(E2C), axis=E2CDim)
-    end
-
-    @test @to_py fo_neighbor_sum(a, offset_provider=offset_provider, backend="py", out=out)
-
-    # ------------------------------------------------
-    a = Field(Cell, collect(1.0:15.0))
-    out = Field(Edge, zeros(Float64, 12))
-
-    @field_operator function fo_max_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
-        return max_over(a(E2C), axis=E2CDim)
-    end
-
-    @test @to_py fo_max_over(a, offset_provider=offset_provider, backend="py", out=out)
-
-    # ------------------------------------------------
-
-    a = Field(Cell, collect(1.0:15.0))
-    out = Field(Edge, zeros(Float64, 12))
-
-    @field_operator function fo_min_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
-        return min_over(a(E2C), axis=E2CDim)
-    end
-
-    @test @to_py fo_min_over(a, offset_provider=offset_provider, backend="py", out=out)
-
-    # ------------------------------------------------
-
-    a = Field(Cell, collect(1.0:15.0))
-    out = Field((Cell, K), zeros(15, 5))
-
-    @field_operator function fo_simple_broadcast(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_,K_},Float64}
-        return broadcast(a, (Cell, K))
-    end
-
-    @test @to_py fo_simple_broadcast(a, backend="py", out=out)
-
-    # ------------------------------------------------
-
-    j_out = Field((), fill(0.0), (Cell, K))
-    py_out = Field((Cell, K), fill(0.0, (10, 10)))
-
-
-    @field_operator function fo_scalar_broadcast()::Field{Tuple{Cell_,K_},Float64}
-        return broadcast(5.0, (Cell, K))
-    end
-
-    @test @to_py fo_scalar_broadcast(backend="py", out=py_out)
-
-    # ------------------------------------------------
-
-    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
-    b = Field((Cell, K), fill(-1.0, (6, 2)))
-    mask = Field((Cell, K), rand(Bool, (6, 2)))
-    out = Field((Cell, K), zeros(6, 2))
-
-    @field_operator function fo_where(mask::Field{Tuple{Cell_,K_},Bool}, a::Field{Tuple{Cell_,K_},Float64}, b::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
-        return where(mask, a, b)
-    end
-
-    @test @to_py fo_where(mask, a, b, backend="py", out=out)
-
-    # -------------------------------------------------
-
-    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
-    out = Field((Cell, K), zeros(Int64, (6, 2)))
-
-    @field_operator function fo_astype(a::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Int64}
-        return convert(Int64, a)
-    end
-
-    @test @to_py fo_astype(a, backend="py", out=out)
-
-    # -------------------------------------------------
-
-    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
-    out = Field((Cell, K), zeros((6, 2)))
-
-    @field_operator function fo_sin(a::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
-        return sin.(a)
-    end
-
-    @test @to_py fo_sin(a, backend="py", out=out)
-
-    # -------------------------------------------------
-
-    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
-    out = Field((Cell, K), zeros((6, 2)))
-
-    @field_operator function fo_asinh(a::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
-        return asinh.(a)
-    end
-
-    @test @to_py fo_asinh(a, backend="py", out=out)
-
-    # -------------------------------------------------
-
-    # TODO OffsetArray is ignored for the moment
-
-    A = Field((Vertex, K), reshape(collect(1.0:15.0), 3, 5), origin=Dict(Vertex => -2, K => -1))
-    B = Field((K, Edge), reshape(ones(6), 3, 2))
-
-    out = Field((Vertex, K, Edge), zeros(3, 3, 2))
-
-    @field_operator function fo_offset_array(A::Field{Tuple{Vertex_,K_},Float64}, B::Field{Tuple{K_,Edge_},Float64})::Field{Tuple{Vertex_,K_,Edge_},Float64}
-        return A .+ B
-    end
-
-    @test @to_py fo_offset_array(A, B, backend="py", out=out)
-
-    # -------------------------------------------------
-
-    a = Field(Cell, collect(1.0:15.0))
-    b = Field(Cell, ones(15))
-    out = Field(Cell, zeros(15))
-
-    @field_operator function fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
-        return a .+ b
-    end
-
-    @field_operator function nested_fo(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
-        res = fo_addition(a, b)
-        return res .+ a
-    end
-end
-
-function run_all()
-    test_gt4py_fo_exec()
-    # test_gt4py_fo_exec_legacy()
-end
-
-@testset "Testset GT2Py fo exec" run_all()
+@testset "Testset GT2Py fo exec" test_gt4py_fo_exec()
