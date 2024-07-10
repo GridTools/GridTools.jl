@@ -195,15 +195,20 @@ function test_fo_min_over(data::ConnectivityData, backend::String)
 end
 
 function test_fo_simple_broadcast(backend::String)
-    a = Field(Cell, collect(1.0:15.0))
-    out = Field((Cell, K), zeros(15, 5))
+    data = collect(1.0:15.0)
+    broadcast_num_dims = 5
+    a = Field(Cell, data)
+    out = Field((Cell, K), zeros(15, broadcast_num_dims))
+
+    # Compute the expected output by broadcasting a
+    expected_output = [a[i] for i in 1:15, j in 1:broadcast_num_dims]
 
     @field_operator function fo_simple_broadcast(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_,K_},Float64}
         return broadcast(a, (Cell, K))
     end
 
     fo_simple_broadcast(a, backend=backend, out=out)
-    @test out == out # TODO(lorenzovarese): identify ground truth
+    @test out == expected_output
 end
 
 function test_fo_scalar_broadcast(backend::String)
@@ -326,6 +331,8 @@ function test_gt4py_fo_exec()
     testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded")
     testwrapper(setup_simple_connectivity, test_fo_min_over, "py")
 
+    testwrapper(nothing, test_fo_simple_broadcast, "embedded")
+    testwrapper(nothing, test_fo_simple_broadcast, "py")
     # TODO(lorenzovarese): add the missing ones
 end
 
