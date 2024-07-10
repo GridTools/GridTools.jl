@@ -226,17 +226,27 @@ function test_fo_scalar_broadcast(backend::String)
 end
 
 function test_fo_where(backend::String)
-    a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
-    b = Field((Cell, K), fill(-1.0, (6, 2)))
-    mask = Field((Cell, K), rand(Bool, (6, 2)))
-    out = Field((Cell, K), zeros(6, 2))
+    a = Field((Cell, K), reshape(collect(1.0:10.0), (5, 2))) # The matrix is filled column major
+    b = Field((Cell, K), fill(-1.0, (5, 2)))
+    mask = Field((Cell, K), [true  false; 
+                             false true; 
+                             true  false; 
+                             false false; 
+                             true  true  ])
+    out = Field((Cell, K), zeros(5, 2))
+
+    expected_output =  [ 1 -1
+                        -1  7
+                         3 -1
+                        -1 -1
+                         5 10 ]
 
     @field_operator function fo_where(mask::Field{Tuple{Cell_,K_},Bool}, a::Field{Tuple{Cell_,K_},Float64}, b::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
         return where(mask, a, b)
     end
 
     fo_where(mask, a, b, backend=backend, out=out)
-    @test out == out # TODO(lorenzovarese): identify ground truth
+    @test out == expected_output 
 end
 
 function test_fo_astype(backend::String)
@@ -335,8 +345,11 @@ function test_gt4py_fo_exec()
     # testwrapper(nothing, test_fo_simple_broadcast, "embedded")
     # testwrapper(nothing, test_fo_simple_broadcast, "py")
 
-    testwrapper(nothing, test_fo_scalar_broadcast, "embedded")
-    testwrapper(nothing, test_fo_scalar_broadcast, "py")
+    # testwrapper(nothing, test_fo_scalar_broadcast, "embedded")
+    # testwrapper(nothing, test_fo_scalar_broadcast, "py")
+
+    testwrapper(nothing, test_fo_where, "embedded")
+    testwrapper(nothing, test_fo_where, "py")
     # TODO(lorenzovarese): add the missing ones
 end
 
