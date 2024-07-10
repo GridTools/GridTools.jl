@@ -269,24 +269,30 @@ function test_fo_sin(backend::String)
     a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
     out = Field((Cell, K), zeros((6, 2)))
 
+    # Compute the expected output using the sin function
+    expected_output = sin.(reshape(collect(1.0:12.0), (6, 2)))
+
     @field_operator function fo_sin(a::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
         return sin.(a)
     end
 
     fo_sin(a, backend=backend, out=out)
-    @test out == out # TODO(lorenzovarese): identify ground truth
+    @test isapprox(out.data, expected_output, atol=1e-6)
 end
 
 function test_fo_asinh(backend::String)
     a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
     out = Field((Cell, K), zeros((6, 2)))
 
+    # Compute the expected output using the asinh function
+    expected_output = asinh.(reshape(collect(1.0:12.0), (6, 2)))
+
     @field_operator function fo_asinh(a::Field{Tuple{Cell_,K_},Float64})::Field{Tuple{Cell_,K_},Float64}
         return asinh.(a)
     end
 
     fo_asinh(a, backend=backend, out=out)
-    @test out == out # TODO(lorenzovarese): identify ground truth
+    @test isapprox(out.data, expected_output, atol=1e-6)
 end
 
 function test_fo_offset_array(backend::String)
@@ -357,6 +363,12 @@ function test_gt4py_fo_exec()
 
     testwrapper(nothing, test_fo_astype, "embedded")
     testwrapper(nothing, test_fo_astype, "py")
+
+    testwrapper(nothing, test_fo_sin, "embedded")
+    testwrapper(nothing, test_fo_sin, "py")
+
+    testwrapper(nothing, test_fo_asinh, "embedded")
+    testwrapper(nothing, test_fo_asinh, "py")
     # TODO(lorenzovarese): add the missing ones
 end
 
