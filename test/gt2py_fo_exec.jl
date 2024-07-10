@@ -165,12 +165,15 @@ function test_fo_max_over(data::ConnectivityData, backend::String)
     a = Field(Cell, collect(1.0:15.0))
     out = Field(Edge, zeros(Float64, 12))
 
+    # Compute the ground truth manually computing max on that dimension
+    expected_output = a[Integer.(map(maximum, eachrow(data.edge_to_cell_table)))]
+
     @field_operator function fo_max_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
         return max_over(a(E2C), axis=E2CDim)
     end
 
     fo_max_over(a, offset_provider=data.offset_provider, backend=backend, out=out)
-    @test out == out # TODO(lorenzovarese): identify ground truth
+    @test out == expected_output
 end
 
 function test_fo_min_over(data::ConnectivityData, backend::String)
@@ -310,6 +313,9 @@ function test_gt4py_fo_exec()
 
     testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "embedded")
     testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "py")
+
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded")
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "py")
 
     # TODO(lorenzovarese): add the missing ones
 end
