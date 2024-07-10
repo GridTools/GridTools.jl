@@ -32,6 +32,51 @@ struct ConnectivityData
     offset_provider::Dict{String,Connectivity}
 end
 
+"""
+    testwrapper(setupfunc::Union{Function,Nothing}, testfunc::Function, args...)
+
+Wrapper function to facilitate testing with optional setup.
+
+# Arguments
+- `setupfunc::Union{Function,Nothing}`: An optional setup function. If provided, it will be called before the test function. 
+                                        If `nothing`, the test function is called directly.
+- `testfunc::Function`: The test function to be executed.
+- `args...`: Additional arguments to be passed to the test function.
+
+# Usage
+- If `setupfunc` is provided, it should return the necessary data that `testfunc` will use. 
+  The returned data will be passed as the first argument to `testfunc`, followed by `args...`.
+- If `setupfunc` is `nothing`, `testfunc` will be called directly with `args...`.
+
+# Examples
+
+## Example 1: Without Setup Function
+```julia
+function mytest(args...)
+    println("Running test with arguments: ", args)
+end
+
+testwrapper(nothing, mytest, 1, 2, 3)
+# Output: Running test with arguments: (1, 2, 3)
+```
+
+## Example 2: With Setup Function
+```julia
+function setup()
+    return "setup data"
+end
+
+function mytest(data, args...)
+    println("Setup data: ", data)
+    println("Running test with arguments: ", args)
+end
+
+testwrapper(setup, mytest, 1, 2, 3)
+# Output: 
+# Setup data: setup data
+# Running test with arguments: (1, 2, 3)
+```
+"""
 function testwrapper(setupfunc::Union{Function,Nothing}, testfunc::Function, args...)
     if setupfunc === nothing
         testfunc(args...)
