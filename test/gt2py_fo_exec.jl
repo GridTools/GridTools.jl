@@ -341,7 +341,7 @@ function test_fo_asinh(backend::String)
 end
 
 function test_fo_offset_array(backend::String)
-    # TODO OffsetArray is ignored for the moment
+    # TODO OffsetArray is ignored and will be removed in the future
 
     A = Field((Vertex, K), reshape(collect(1.0:15.0), 3, 5), origin=Dict(Vertex => -2, K => -1))
     B = Field((K, Edge), reshape(ones(6), 3, 2))
@@ -352,7 +352,7 @@ function test_fo_offset_array(backend::String)
         return A .+ B
     end
 
-    @test @to_py fo_offset_array(A, B, backend=backend, out=out)
+    @test @to_py fo_offset_array(A, B, backend=backend, out=out) # Simply check if the execution is performed
     println("test_fo_offset_array - backend->[", backend, "] - output: ", out.data)
     # @test out == expected_output # TODO: identify ground truth
 end
