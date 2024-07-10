@@ -352,14 +352,19 @@ function test_fo_offset_array(backend::String)
         return A .+ B
     end
 
-    fo_offset_array(A, B, backend=backend, out=out)
-    @test out == out # TODO(lorenzovarese): identify ground truth
+    @test @to_py fo_offset_array(A, B, backend=backend, out=out)
+    println("test_fo_offset_array - backend->[", backend, "] - output: ", out.data)
+    # @test out == expected_output # TODO: identify ground truth
 end
 
 function test_nested_fo(backend::String)
     a = Field(Cell, collect(1.0:15.0))
     b = Field(Cell, ones(15))
     out = Field(Cell, zeros(15))
+
+    # Compute the Ground Truth
+    intermediate_result = a.data .+ b.data
+    expected_output = intermediate_result .+ a.data
 
     @field_operator function fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
         return a .+ b
@@ -370,8 +375,10 @@ function test_nested_fo(backend::String)
         return res .+ a
     end
 
-    # Add invocation
-    @test out == out  # TODO(lorenzovarese): identify ground truth
+    nested_fo(a, b, backend=backend, out=out)
+
+    # Test against the Ground Truth
+    @test out.data == expected_output
 end
 
 # ========================================
@@ -414,7 +421,12 @@ function test_gt4py_fo_exec()
 
     testwrapper(nothing, test_fo_asinh, "embedded")
     testwrapper(nothing, test_fo_asinh, "py")
-    # TODO(lorenzovarese): add the missing ones
+
+    testwrapper(nothing, test_fo_offset_array, "embedded") # TODO: implementation is missing
+    testwrapper(nothing, test_fo_offset_array, "py")
+
+    testwrapper(nothing, test_nested_fo, "embedded")
+    testwrapper(nothing, test_nested_fo, "py")
 end
 
 @testset "Testset GT2Py fo exec" test_gt4py_fo_exec()
