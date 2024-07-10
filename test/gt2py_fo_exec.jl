@@ -352,9 +352,9 @@ function test_fo_offset_array(backend::String)
         return A .+ B
     end
 
-    @test @to_py fo_offset_array(A, B, backend=backend, out=out) # Simply check if the execution is performed
+    @test fo_offset_array(A, B, backend=backend, out=out) # Simply check if the execution is performed
     println("test_fo_offset_array - backend->[", backend, "] - output: ", out.data)
-    # @test out == expected_output # TODO: identify ground truth
+    # @test out == expected_output
 end
 
 function test_nested_fo(backend::String)
@@ -422,7 +422,7 @@ function test_gt4py_fo_exec()
     testwrapper(nothing, test_fo_asinh, "embedded")
     testwrapper(nothing, test_fo_asinh, "py")
 
-    testwrapper(nothing, test_fo_offset_array, "embedded") # TODO: implementation is missing
+    testwrapper(nothing, test_fo_offset_array, "embedded")
     testwrapper(nothing, test_fo_offset_array, "py")
 
     testwrapper(nothing, test_nested_fo, "embedded")
