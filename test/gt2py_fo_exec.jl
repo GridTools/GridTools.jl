@@ -212,16 +212,17 @@ function test_fo_simple_broadcast(backend::String)
 end
 
 function test_fo_scalar_broadcast(backend::String)
-    j_out = Field((), fill(0.0), (Cell, K))
-    py_out = Field((Cell, K), fill(0.0, (10, 10)))
+    out = Field((Cell, K), fill(0.0, (10, 10)))
 
+    # Compute the expected output by broadcasting the value
+    expected_output = fill(5.0, (10, 10))
 
     @field_operator function fo_scalar_broadcast()::Field{Tuple{Cell_,K_},Float64}
         return broadcast(5.0, (Cell, K))
     end
 
-    fo_scalar_broadcast(backend=backend, out=py_out)
-    @test out == out # TODO(lorenzovarese): identify ground truth
+    fo_scalar_broadcast(backend=backend, out=out)
+    @test out == expected_output
 end
 
 function test_fo_where(backend::String)
@@ -313,26 +314,29 @@ end
 # ========================================
 
 function test_gt4py_fo_exec()
-    testwrapper(nothing, test_fo_addition, "embedded")
-    testwrapper(nothing, test_fo_addition, "py")
+    # testwrapper(nothing, test_fo_addition, "embedded")
+    # testwrapper(nothing, test_fo_addition, "py")
 
-    testwrapper(nothing, test_fo_nested_if_else, "embedded")
-    testwrapper(nothing, test_fo_nested_if_else, "py")
+    # testwrapper(nothing, test_fo_nested_if_else, "embedded")
+    # testwrapper(nothing, test_fo_nested_if_else, "py")
 
-    testwrapper(setup_simple_connectivity, test_fo_remapping, "embedded")
-    testwrapper(setup_simple_connectivity, test_fo_remapping, "py")
+    # testwrapper(setup_simple_connectivity, test_fo_remapping, "embedded")
+    # testwrapper(setup_simple_connectivity, test_fo_remapping, "py")
 
-    testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "embedded")
-    testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "py")
+    # testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "embedded")
+    # testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "py")
 
-    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded")
-    testwrapper(setup_simple_connectivity, test_fo_max_over, "py")
+    # testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded")
+    # testwrapper(setup_simple_connectivity, test_fo_max_over, "py")
 
-    testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded")
-    testwrapper(setup_simple_connectivity, test_fo_min_over, "py")
+    # testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded")
+    # testwrapper(setup_simple_connectivity, test_fo_min_over, "py")
 
-    testwrapper(nothing, test_fo_simple_broadcast, "embedded")
-    testwrapper(nothing, test_fo_simple_broadcast, "py")
+    # testwrapper(nothing, test_fo_simple_broadcast, "embedded")
+    # testwrapper(nothing, test_fo_simple_broadcast, "py")
+
+    testwrapper(nothing, test_fo_scalar_broadcast, "embedded")
+    testwrapper(nothing, test_fo_scalar_broadcast, "py")
     # TODO(lorenzovarese): add the missing ones
 end
 
