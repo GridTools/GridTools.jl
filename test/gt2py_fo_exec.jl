@@ -147,12 +147,18 @@ function test_fo_neighbor_sum(data::ConnectivityData, backend::String)
     a = Field(Cell, collect(1.0:15.0))
     out = Field(Edge, zeros(Float64, 12))
 
+    # Function to sum only the positive elements of each inner vector (to exclude the -1 in the connectivity)
+    sum_positive_elements(v) = sum(x -> x > 0 ? x : 0, v)
+
+    # Compute the ground truth manually computing the sum on that dimension
+    expected_output = a[Integer.(map(sum_positive_elements, eachrow(data.edge_to_cell_table)))]
+
     @field_operator function fo_neighbor_sum(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
         return neighbor_sum(a(E2C), axis=E2CDim)
     end
 
     fo_neighbor_sum(a, offset_provider=data.offset_provider, backend=backend, out=out)
-    @test 1 == 1 # TODO(lorenzovarese) check the correct output
+    @test out == expected_output
 end
 
 function test_fo_max_over(backend::String)
