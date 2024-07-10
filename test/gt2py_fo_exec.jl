@@ -200,17 +200,17 @@ end
 # ========================================
 
 function test_gt4py_fo_exec()
-    testwrapper(nothing, (args...) -> test_fo_addition(args...), "embedded")
-    testwrapper(nothing, (args...) -> test_fo_addition(args...), "py")
+    testwrapper(nothing, test_fo_addition, "embedded")
+    testwrapper(nothing, test_fo_addition, "py")
 
-    testwrapper(nothing, (args...) -> test_fo_nested_if_else(args...), "embedded")
-    testwrapper(nothing, (args...) -> test_fo_nested_if_else(args...), "py")
+    testwrapper(nothing, test_fo_nested_if_else, "embedded")
+    testwrapper(nothing, test_fo_nested_if_else, "py")
 
-    testwrapper(setup_simple_connectivity, (args...) -> test_fo_remapping(args...), "embedded")
-    testwrapper(setup_simple_connectivity, (args...) -> test_fo_remapping(args...), "py")
+    testwrapper(setup_simple_connectivity, test_fo_remapping, "embedded")
+    testwrapper(setup_simple_connectivity, test_fo_remapping, "py")
 
-    testwrapper(setup_simple_connectivity, (args...) -> test_fo_neighbor_sum(args...), "embedded") #TODO(lorenzovarese) fixing access to global mesh_definitions 
-    # testwrapper(setup_simple_connectivity, (args...) -> test_fo_neighbor_sum(args...), "py")
+    testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "embedded")
+    testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "py")
 end
 
 function test_gt4py_fo_exec_legacy()
