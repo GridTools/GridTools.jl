@@ -137,6 +137,8 @@ function test_fo_nested_if_else(backend::String)
     @field_operator function fo_nested_if_else(f::Field{Tuple{Cell_},Int32})::Field{Tuple{Cell_},Int32}
         tmp = f
         if 1.0 < 10.0
+            # TODO: The Int32 cast is ugly, but required to have consistent behaviour between embedded and GT4Py.
+            #  We should fix the design.
             tmp = f .+ Int32(1)
             if 30 > 5
                 tmp = tmp .+ Int32(20)
