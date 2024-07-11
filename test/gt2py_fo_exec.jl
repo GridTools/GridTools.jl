@@ -186,7 +186,7 @@ function test_fo_neighbor_sum(offset_provider::Dict{String,Connectivity}, backen
     # Compute the ground truth manually computing the sum on that dimension
     edge_to_cell_data = offset_provider["E2C"].data
     expected_output = Float64[]
-    for i in 1:size(edge_to_cell_data, 1)
+    for i in axes(edge_to_cell_data, 1)
         push!(expected_output, sum_positive_elements(edge_to_cell_data[i, :], a))
     end
 
