@@ -283,7 +283,7 @@ function convert_type(a::Connectivity)
 
     # account for different indexing in python
     return gtx.NeighborTableOffsetProvider(
-        #TODO(lorenzovarese): fix performance (conversion from 0-index to 1-index) (caching or directly store the 0-index version of the connectivity)
+        # TODO(lorenzovarese): fix performance (conversion from 0-index to 1-index) (caching or directly store the 0-index version of the connectivity)
         ifelse.(a.data .!= -1, a.data .- 1, a.data),
         target_dim,
         source_dim,
