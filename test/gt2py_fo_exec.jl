@@ -20,9 +20,7 @@ macro to_py(expr::Expr)
     return res
 end
 
-# ========================================
-# ============== Utility =================
-# ========================================
+# Utility ----------------------------------------------------------------------------------------------------
 
 struct ConnectivityData
     edge_to_cell_table::Matrix{Integer}
@@ -86,11 +84,9 @@ function testwrapper(setupfunc::Union{Function,Nothing}, testfunc::Function, arg
     end
 end
 
-# ========================================
-# ============== Setup ===================
-# ========================================
+# Setup ------------------------------------------------------------------------------------------------------
 
-function setup_simple_connectivity()
+function setup_simple_connectivity()::ConnectivityData
     edge_to_cell_table = [
         [1 -1];
         [3 -1];
@@ -127,9 +123,7 @@ function setup_simple_connectivity()
     return ConnectivityData(edge_to_cell_table, cell_to_edge_table, E2C_offset_provider, C2E_offset_provider, offset_provider)
 end
 
-# ========================================
-# ========= Test Definitions =============
-# ========================================
+# Test Definitions -------------------------------------------------------------------------------------------
 
 function test_fo_addition(backend::String)
     a = Field(Cell, collect(1.0:15.0))
@@ -381,9 +375,7 @@ function test_nested_fo(backend::String)
     @test out.data == expected_output
 end
 
-# ========================================
-# ========== Test Executions =============
-# ========================================
+# Test Executions --------------------------------------------------------------------------------------------
 
 function test_gt4py_fo_exec()
     testwrapper(nothing, test_fo_addition, "embedded")
