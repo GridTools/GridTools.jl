@@ -109,7 +109,7 @@ function setup_simple_connectivity()::Dict{String,Connectivity}
     offset_provider = Dict{String,Connectivity}(
         "E2C" => E2C_offset_provider,
         "C2E" => C2E_offset_provider,
-        "E2CDim" => E2C_offset_provider #TODO(lorenzovarese) this is required for the embedded backend (note: python already uses E2C)
+        "E2CDim" => E2C_offset_provider # TODO(lorenzovarese): this is required for the embedded backend (note: python already uses E2C)
     )
 
     return offset_provider
