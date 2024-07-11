@@ -175,14 +175,20 @@ function test_fo_remapping(offset_provider::Dict{String,Connectivity}, backend::
 end
 
 function test_fo_neighbor_sum(offset_provider::Dict{String,Connectivity}, backend::String)
-    a = Field(Cell, collect(1.0:15.0))
+    a = Field(Cell, collect(5.0:17.0)*3)
     out = Field(Edge, zeros(Float64, 12))
-
+    
     # Function to sum only the positive elements of each inner vector (to exclude the -1 in the connectivity)
-    sum_positive_elements(v) = sum(x -> x > 0 ? x : 0, v)
+    function sum_positive_elements(v, field_data)
+        return sum(x -> x > 0 ? field_data[Int(x)] : 0, v)
+    end
 
     # Compute the ground truth manually computing the sum on that dimension
-    expected_output = a[Integer.(map(sum_positive_elements, eachrow(offset_provider["E2C"].data)))]
+    edge_to_cell_data = offset_provider["E2C"].data
+    expected_output = Float64[]
+    for i in 1:size(edge_to_cell_data, 1)
+        push!(expected_output, sum_positive_elements(edge_to_cell_data[i, :], a))
+    end
 
     @field_operator function fo_neighbor_sum(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
         return neighbor_sum(a(E2C), axis=E2CDim)
