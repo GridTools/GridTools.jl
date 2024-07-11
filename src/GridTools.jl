@@ -455,6 +455,16 @@ struct Connectivity
     dims::Integer
 end
 
+@generated function Base.getindex(conn::Connectivity, row::Union{Integer, Colon}, col::Integer)
+    if row <: Integer
+        return :(conn.data[row, col])
+    elseif row <: Colon
+        return :(conn.data[:, col])
+    else
+        throw(ArgumentError("Unsupported index type"))
+    end
+end
+
 # Field operator ----------------------------------------------------------------------
 
 struct FieldOp
