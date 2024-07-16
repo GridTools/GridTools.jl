@@ -207,6 +207,7 @@ function Field(
     return Field(Tuple(dim), data, Tuple(broadcast_dims), origin = origin)
 end
 
+# TODO(tehrengruber): There is no need to have FieldOffset and FieldOffsetTS, remove FieldOffset
 struct FieldOffsetTS{
     Name,
     Source <: Dimension,
@@ -367,10 +368,11 @@ function remap_ts(
         offset::FieldOffsetTS{OffsetName, SourceDim, Tuple{TargetDim}},
         nb_ind::Int64)::Field where {OffsetName, SourceDim <: Dimension, TargetDim <:Dimension}
     conn = OFFSET_PROVIDER[string(OffsetName)]
+    @assert conn isa Dimension
 
-    new_offsets = Dict(field.dims[i] => field.origin[i] for i in 1:length(field.dims))
-    new_offsets[conn] = nb_ind
-    return Field(field.dims, field.data, field.broadcast_dims, origin = new_offsets)
+    new_origin = Dict(field.dims[i] => field.origin[i] for i in 1:length(field.dims))
+    new_origin[conn] -= nb_ind
+    return Field(field.dims, field.data, field.broadcast_dims, origin = new_origin)
 end
 
 function remap_ts(

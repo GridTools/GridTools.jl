@@ -130,6 +130,31 @@ function test_fo_addition(backend::String)
     @test all(out.data .== 0)
 end
 
+function test_fo_cartesian_offset(backend::String)
+    inp = Field(K, collect(1.0:15.0))
+    out = Field(K, zeros(Float64, 14)) # field is one smaller since we shift by one
+
+    @field_operator function fo_cartesian_offset(inp::Field{Tuple{K_},Float64})::Field{Tuple{K_},Float64}
+        return inp(Koff[1])
+    end
+
+    fo_cartesian_offset(inp, backend=backend, out=out, offset_provider=Dict("Koff" => K))
+    @test all(out.data .== 2.0:15.0)
+end
+
+function test_fo_cartesian_offset_composed(backend::String)
+    inp = Field(K, collect(1.0:15.0))
+    out = Field(K, zeros(Float64, 12)) # field is one smaller since we shift by one
+
+    @field_operator function fo_cartesian_offset_composed(inp::Field{Tuple{K_},Float64})::Field{Tuple{K_},Float64}
+        tmp = inp(Koff[1])
+        return tmp(Koff[2])
+    end
+
+    fo_cartesian_offset_composed(inp, backend=backend, out=out, offset_provider=Dict("Koff" => K))
+    @test all(out.data .== 4.0:15.0)
+end
+
 function test_fo_nested_if_else(backend::String)
     a = Field(Cell, collect(Int32, 1:15))  # TODO(tehrengruber): if we don't use the right dtype here we get a horrible error in python
     out = Field(Cell, zeros(Int32, 15))
@@ -380,6 +405,12 @@ end
 function test_gt4py_fo_exec()
     testwrapper(nothing, test_fo_addition, "embedded")
     testwrapper(nothing, test_fo_addition, "py")
+
+    testwrapper(nothing, test_fo_cartesian_offset, "embedded")
+    testwrapper(nothing, test_fo_cartesian_offset, "py")
+
+    testwrapper(nothing, test_fo_cartesian_offset_composed, "embedded")
+    testwrapper(nothing, test_fo_cartesian_offset_composed, "py")
 
     testwrapper(nothing, test_fo_nested_if_else, "embedded")
     testwrapper(nothing, test_fo_nested_if_else, "py")
