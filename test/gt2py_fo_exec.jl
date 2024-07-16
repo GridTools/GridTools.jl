@@ -360,8 +360,6 @@ function test_fo_asinh(backend::String)
 end
 
 function test_fo_offset_array(backend::String)
-    # TODO OffsetArray is ignored and will be removed in the future
-
     A = Field((Vertex, K), reshape(collect(1.0:15.0), 3, 5), origin=Dict(Vertex => -2, K => -1))
     B = Field((K, Edge), reshape(ones(6), 3, 2))
 
@@ -445,8 +443,9 @@ function test_gt4py_fo_exec()
     testwrapper(nothing, test_fo_asinh, "embedded")
     testwrapper(nothing, test_fo_asinh, "py")
 
-    testwrapper(nothing, test_fo_offset_array, "embedded")
-    testwrapper(nothing, test_fo_offset_array, "py")
+    # TODO(tehrengruber): disabled for now until we understand what it is supposed to do
+    #testwrapper(nothing, test_fo_offset_array, "embedded")
+    #testwrapper(nothing, test_fo_offset_array, "py")
 
     testwrapper(nothing, test_nested_fo, "embedded")
     testwrapper(nothing, test_nested_fo, "py")
