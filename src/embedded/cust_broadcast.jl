@@ -1,5 +1,7 @@
 Base.BroadcastStyle(::Type{<:Field}) = Broadcast.ArrayStyle{Field}()
 
+# TODO(tehrengruber): Implement a range with an attached dimension instead of this single object
+#  for an entire domain. Invesitage what broadcast_dims is needed for here.
 struct FieldShape{
     N,
     Dim <: NTuple{N, Dimension},
@@ -11,9 +13,9 @@ struct FieldShape{
     broadcast_dims::B_Dim
 end
 
-function shape(f::Field)
-    return FieldShape(f.dims, axes(f), f.broadcast_dims)
-end
+shape(f::Field) = FieldShape(f.dims, axes(f), f.broadcast_dims)
+
+Base.length(bc::FieldShape{N}) where N = N
 
 # Only called for assign broadcasting (.=)
 @inline function Base.Broadcast.materialize!(dest, bc::Broadcasted{ArrayStyle{Field}})

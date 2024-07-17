@@ -297,11 +297,11 @@ function visit_(sym::Val{:call}, args::Array, outer_loc)
             func = visit(args[1], outer_loc),
             args = [
                 visit(x, outer_loc) for
-                x in Base.tail(Tuple(args)) if (typeof(x) != Expr || x.head != :(kw))
+                x in args[2:end] if (typeof(x) != Expr || x.head != :(kw))
             ],
             kwargs = Dict(
                 x.args[1] => visit(x.args[2], outer_loc) for
-                x in Base.tail(Tuple(args)) if (typeof(x) == Expr && x.head == :kw)
+                x in args[2:end] if (typeof(x) == Expr && x.head == :kw)
             ),
             location = outer_loc,
         )
@@ -345,10 +345,15 @@ function visit_(sym::Val{:(/=)}, args::Array, outer_loc)
 end
 
 function visit_(sym::Val{:ref}, args::Array, outer_loc)
-    if typeof(args[2]) <: Integer
+    if typeof(args[2]) <: Integer # TODO: also check that args[1] is an offset
+        # TODO(tehrengruber): This is an extremely dirty hack, we need to get
+        # the information from the offset provider or similar, but it is not
+        # available here.
+        is_cartesian = string(args[1])[1] in ['I', 'J', 'K']
+        index = is_cartesian ? args[2] : args[2]-1
         return foast.Subscript(
             value = visit(args[1], outer_loc),
-            index = args[2] - 1, # Due to different indexing in python
+            index = index,
             location = outer_loc,
         )
     else
@@ -437,18 +442,18 @@ function from_type_hint(expr::Expr, closure_vars::Dict)
     param_type = expr.args
     if param_type[1] == :Tuple
         return ts.TupleType(
-            types = [recursive_make_symbol(arg) for arg in Base.tail(param_type)]
+            types = [recursive_make_symbol(arg) for arg in param_type[]]
         )
     elseif param_type[1] == :Field
         @assert length(param_type) == 3 (
             "Field type requires two arguments, got $(length(param_type)-1) in $(param_type)."
         )
 
-        dim = []
         (dims, dtype) = param_type[2:end]
-
+        
         # TODO: do some sanity checks here for example Field{Int64, Dims} will fail terribly
-
+        
+        dim = []
         for d in dims.args[2:end]
             @assert string(d) in keys(closure_vars)
             push!(dim, closure_vars[string(d)])

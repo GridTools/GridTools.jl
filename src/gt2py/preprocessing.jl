@@ -57,12 +57,9 @@ function translate_closure_vars(j_closure_vars::Dict)::Dict
         new_value = nothing
 
         if typeof(value) <: FieldOffset
-            py_source = map(
-                dim -> gtx.Dimension(
-                    get_dim_name(dim),
-                    kind = py_dim_kind[get_dim_kind(dim)]
-                ),
-                value.source
+            py_source = gtx.Dimension(
+                get_dim_name(value.source),
+                kind = py_dim_kind[get_dim_kind(value.source)]
             )
             py_target = map(
                 dim -> gtx.Dimension(
@@ -73,8 +70,8 @@ function translate_closure_vars(j_closure_vars::Dict)::Dict
             )
             new_value = gtx.FieldOffset(
                 value.name,
-                source = length(py_source) == 1 ? py_source[1] : py_source,
-                target = length(py_target) == 1 ? py_target[1] : py_target
+                source = py_source,
+                target = py_target
             )
         elseif typeof(value) <: Function
             new_value = builtin_py_op[key]

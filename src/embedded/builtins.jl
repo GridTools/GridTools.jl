@@ -78,9 +78,9 @@ julia> a = Field((Cell, K), fill(1.0, (3,3)));
 julia> b = Field((Cell, K), fill(2.0, (3,3)));
 julia> where(mask, a, b)
 3x3  Field with dimensions ("Cell", "K") with indices 1:3×1:3:
- 1.0  2.0  2.0
- 2.0  1.0  2.0
+ 2.0  2.0  1.0
  1.0  1.0  1.0
+ 1.0  2.0  2.0
 ```
 
 The `where` function builtin also allows for nesting of tuples. In this scenario, it will first perform an unrolling:
