@@ -208,20 +208,20 @@ function py_field_operator(
 end
 
 function jast_to_foast(expr::Expr, closure_vars::Dict)
-    expr, closure_vars, annotations = preprocess_definiton(expr, closure_vars)
-    expr, closure_vars = remove_function_aliases(expr, closure_vars)             # TODO Can be ommited once gt4py allows aliases
-    foast_node = visit_jast(expr, closure_vars)
-    foast_node = postprocess_definition(foast_node, closure_vars, annotations)
-    return foast_node, closure_vars
+    expr, py_closure_vars, annotations = preprocess_definiton(expr, closure_vars)
+    expr, py_closure_vars = remove_function_aliases(expr, py_closure_vars)             # TODO Can be ommited once gt4py allows aliases
+    foast_node = visit_jast(expr, py_closure_vars)
+    foast_node = postprocess_definition(foast_node, py_closure_vars, annotations)
+    return foast_node, py_closure_vars
 end
 
 function preprocess_definiton(expr::Expr, closure_vars::Dict)
     sat = single_assign_target_pass(expr)
     ucc = unchain_compairs_pass(sat)
     ssa = single_static_assign_pass(ucc)
-    closure_vars = translate_closure_vars(closure_vars)
-    annotations = get_annotation(ssa, closure_vars)
-    return (ssa, closure_vars, annotations)
+    py_closure_vars = translate_closure_vars(closure_vars)
+    annotations = get_annotation(ssa, py_closure_vars)
+    return (ssa, py_closure_vars, annotations)
 end
 
 function postprocess_definition(foast_node, closure_vars, annotations)
@@ -241,6 +241,7 @@ function postprocess_definition(foast_node, closure_vars, annotations)
     return foast_node
 end
 
+# TODO(tehrengruber): unify with convert_type
 py_args(args::Union{Base.Pairs, Dict}) =
     Dict(i.first => convert_type(i.second) for i in args)
 py_args(args::Tuple) = [convert_type(arg) for arg in args]
@@ -260,8 +261,6 @@ function convert_type(a::Field)
         new_data = np.asarray(a.data)
         @warn "Dtype of the Field: $a is not concrete. Data must be copied to Python which may affect performance. Try using dtypes <: Array."
     end
-    println(new_data)
-    println(typeof(new_data))
 
     offset = Dict(convert_type(dim) => a.origin[i] for (i, dim) in enumerate(a.dims))
 
@@ -282,6 +281,7 @@ function convert_type(a::Connectivity)
 
     # account for different indexing in python
     return gtx.NeighborTableOffsetProvider(
+        # TODO(lorenzovarese): fix performance (conversion from 0-index to 1-index) (caching or directly store the 0-index version of the connectivity)
         ifelse.(a.data .!= -1, a.data .- 1, a.data),
         target_dim,
         source_dim,
