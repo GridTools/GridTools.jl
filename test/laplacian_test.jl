@@ -3,18 +3,23 @@ using GridTools
 
 include("mesh_definitions.jl")
 
-const global IDim_ = Dimension{:IDim_, LOCAL}
-const global JDim_ = Dimension{:JDim_, LOCAL}
+const global IDim_ = Dimension{:IDim_, HORIZONTAL}
+const global JDim_ = Dimension{:JDim_, HORIZONTAL}
 const global IDim = IDim_()
 const global JDim = JDim_()
 
-Ioff = FieldOffset("Ioff", source=IDim, target=(IDim, Dimension{:I_, LOCAL}()))
-Joff = FieldOffset("Joff", source=JDim, target=(JDim, Dimension{:J_, LOCAL}()))
+const Ioff = FieldOffset("Ioff", source=IDim, target=IDim)
+const Joff = FieldOffset("Joff", source=JDim, target=JDim)
+
+offset_provider = Dict{String, Dimension}(
+                   "Ioff" => IDim,
+                   "Joff" => JDim
+                )
 
 # ----------------------------------------------------------------------------------------
 
-@field_operator function lap(in_field::Field{Tuple{IDim, JDim}, Float64})
-    return -4.0 * in_field +
+@field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
+    return in_field +
            in_field(Ioff[1]) +
            in_field(Ioff[-1]) +
            in_field(Joff[1]) +
@@ -25,21 +30,21 @@ field_data = collect(reshape(1.:16., 4, 4))
 in_field = Field((IDim, JDim), field_data)
 out_field = Field((IDim, JDim), zeros(Float64, 4, 4))
 
-lap(in_field, backend="embedded", out=out_field)
+lap(in_field, offset_provider=offset_provider, backend="py", out=out_field)
 @show out_field.data
 
 # ----------------------------------------------------------------------------------------
 
-@field_operator function laplap(in_field::Field{Tuple{IDim, JDim}, Float64})
-    return lap(lap(in_field))
-end
+# @field_operator function laplap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
+#     return lap(lap(in_field))
+# end
 
-field_data = collect(reshape(1.:16., 4, 4)) 
-in_field = Field((IDim, JDim), field_data)
-out_field = Field((IDim, JDim), zeros(Float64, 4, 4))
+# field_data = collect(reshape(1.:16., 4, 4)) 
+# in_field = Field((IDim, JDim), field_data)
+# out_field = Field((IDim, JDim), zeros(Float64, 4, 4))
 
-lap(in_field, backend="embedded", out=out_field)
-@show out_field.data
+# lap(in_field, backend="embedded", out=out_field)
+# @show out_field.data
 
 # ----------------------------------------------------------------------------------------
 
