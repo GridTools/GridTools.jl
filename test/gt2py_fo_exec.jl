@@ -1,4 +1,5 @@
 using Test
+using Printf
 using GridTools
 using MacroTools
 
@@ -78,6 +79,43 @@ function testwrapper(setupfunc::Union{Function,Nothing}, testfunc::Function, arg
     end
 end
 
+function pretty_print_matrix(mat::Matrix)::Nothing
+    max_width = maximum(length(string(e)) for e in mat)
+
+    for row in eachrow(mat)
+        formatted_row = join([@sprintf("%*s", max_width, string(x)) for x in row], "  ")
+        println(formatted_row)
+    end
+    return
+end
+
+function lap_ground_truth(in_field::Matrix{Float64})::Matrix{Float64}
+    nrows, ncols = size(in_field)
+    out_field = zeros(Float64, nrows, ncols) # Initialize out_field as a matrix of zeros
+    out_field .= in_field # Copy inplace: to keep the initial values in the border
+    for i in 2:(nrows - 1)
+        for j in 2:(ncols - 1)
+            # Perform the stencil operation
+            out_field[i, j] = -4 * in_field[i, j] + 
+                                in_field[i+1, j]   + 
+                                in_field[i-1, j]   + 
+                                in_field[i, j+1]   + 
+                                in_field[i, j-1]
+        end
+    end
+
+    return out_field
+end
+
+function lap_lap_ground_truth(in_field::Matrix{Float64})
+    x_length, y_length = size(in_field)
+    out_field = zeros(Float64, x_length, y_length)
+    out_field .= in_field
+    temp_field = lap_ground_truth(lap_ground_truth(in_field))  # Perform the laplap operation on the entire field
+    out_field[3:end-2, 3:end-2] .= temp_field[3:end-2, 3:end-2] # Restrict the copy to avoid the copy in the unchanged border
+    return out_field
+end
+
 # Setup ------------------------------------------------------------------------------------------------------
 
 function setup_simple_connectivity()::Dict{String,Connectivity}
@@ -115,6 +153,22 @@ function setup_simple_connectivity()::Dict{String,Connectivity}
     )
 
     return offset_provider
+end
+
+function setup_constant_cartesian_domain()
+    offset_provider = Dict{String, Dimension}(
+                    "Ioff" => IDim,
+                    "Joff" => JDim
+                    )
+    return offset_provider
+end
+
+function constant_cartesian_domain()::Field
+    return Field((IDim, JDim), ones(Float64, 8, 8))
+end
+
+function simple_cartesian_domain()::Field
+    return Field((IDim, JDim), [Float64((i-1) * 5 + j-1) for i in 1:5, j in 1:5])
 end
 
 # Test Definitions -------------------------------------------------------------------------------------------
@@ -427,6 +481,65 @@ function test_nested_fo(backend::String)
     @test out.data == expected_output
 end
 
+function test_lap(offset_provider::Dict{String, Dimension}, backend::String, domain_generator::Function, debug::Bool=false)
+    in_field = domain_generator()
+    x_length, y_length = size(in_field.data)
+    out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
+    expected_out = lap_ground_truth(in_field.data)
+    
+    @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
+        return -4.0*in_field +
+            in_field(Ioff[1]) +
+            in_field(Ioff[-1]) +
+            in_field(Joff[1]) +
+            in_field(Joff[-1])
+    end
+
+    lap(in_field, offset_provider=offset_provider, backend=backend, out=out_field)
+    
+    if debug
+        println("\nOutput Matrix after applying lap() operator in the field operator:")
+        pretty_print_matrix(out_field.data)
+
+        println("\nExpected ground truth of laplacian computation without field operator:")
+        pretty_print_matrix(expected_out)
+    end
+
+    @test out_field.data[2:end-1, 2:end-1] == expected_out[2:end-1, 2:end-1]
+end
+
+function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String, domain_generator::Function, debug::Bool=false)
+    in_field = domain_generator()
+    x_length, y_length = size(in_field.data)
+    out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
+    expected_out = lap_lap_ground_truth(in_field.data)
+
+    @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
+        return -4.0*in_field +
+            in_field(Ioff[1]) +
+            in_field(Ioff[-1]) +
+            in_field(Joff[1]) +
+            in_field(Joff[-1])
+    end
+    
+    @field_operator function lap_lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
+        tmp = lap(in_field)
+        return lap(tmp)
+    end
+
+    lap_lap(in_field, offset_provider=offset_provider, backend=backend, out=out_field)
+
+    if debug
+        println("\nOutput Matrix after applying lap(lap()) operator:")
+        pretty_print_matrix(out_field.data)
+
+        println("\nExpected ground truth of lap(lap()) computation without field operator:")
+        pretty_print_matrix(expected_out)
+    end
+
+    @test out_field.data[3:end-2, 3:end-2] == expected_out[3:end-2, 3:end-2]
+end
+
 # Test Executions --------------------------------------------------------------------------------------------
 
 function test_gt4py_fo_exec()
@@ -491,6 +604,20 @@ function test_gt4py_fo_exec()
 
     testwrapper(nothing, test_nested_fo, "embedded")
     testwrapper(nothing, test_nested_fo, "py")
+
+    # TODO: add support for the embedded backend when the dims is changing due to cartesian offsets
+    # (Note: check the debug flag for pretty printing the outputs)
+    # testwrapper(setup_constant_cartesian_domain, test_lap, "embedded", constant_cartesian_domain)
+    testwrapper(setup_constant_cartesian_domain, test_lap, "py", constant_cartesian_domain)
+
+    # testwrapper(setup_constant_cartesian_domain, test_lap, "embedded", simple_cartesian_domain)
+    testwrapper(setup_constant_cartesian_domain, test_lap, "py", simple_cartesian_domain)
+
+    # testwrapper(setup_constant_cartesian_domain, test_lap_lap, "embedded", constant_cartesian_domain)
+    testwrapper(setup_constant_cartesian_domain, test_lap_lap, "py", constant_cartesian_domain)
+    
+    # testwrapper(setup_constant_cartesian_domain, test_lap_lap, "embedded", simple_cartesian_domain)
+    testwrapper(setup_constant_cartesian_domain, test_lap_lap, "py", simple_cartesian_domain)
 end
 
 @testset "Testset GT2Py fo exec" test_gt4py_fo_exec()
