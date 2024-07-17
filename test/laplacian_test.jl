@@ -17,9 +17,7 @@ offset_provider = Dict{String, Dimension}(
                    "Joff" => JDim
                 )
 
-function test_lap(field::Field)
-    field_data = field.data
-    in_field = Field((IDim, JDim), field_data)
+function test_lap(in_field::Field)
     out_field = Field((IDim, JDim), zeros(Float64, 8, 8))
     
     @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
@@ -36,9 +34,7 @@ function test_lap(field::Field)
     pretty_print_matrix(out_field.data)
 end
 
-function test_lap_lap(field::Field)
-    field_data = field.data
-    in_field = Field((IDim, JDim), field_data)
+function test_lap_lap(in_field::Field)
     out_field = Field((IDim, JDim), zeros(Float64, 8, 8))
 
     @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
