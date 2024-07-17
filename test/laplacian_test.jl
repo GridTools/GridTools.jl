@@ -20,7 +20,7 @@ offset_provider = Dict{String, Dimension}(
 function test_lap(field::Field)
     field_data = field.data
     in_field = Field((IDim, JDim), field_data)
-    out_field = Field((IDim, JDim), zeros(Float64, 4, 4))
+    out_field = Field((IDim, JDim), zeros(Float64, 8, 8))
     
     @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
         return -4.0*in_field +
@@ -39,7 +39,7 @@ end
 function test_lap_lap(field::Field)
     field_data = field.data
     in_field = Field((IDim, JDim), field_data)
-    out_field = Field((IDim, JDim), zeros(Float64, 4, 4))
+    out_field = Field((IDim, JDim), zeros(Float64, 8, 8))
 
     @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
         return -4.0*in_field +
@@ -71,7 +71,8 @@ function pretty_print_matrix(mat::Matrix)::Nothing
 end
 
 function allocate_cartesian_case()::Field
-    return Field((IDim, JDim), [Float64((i-1) * 10 + j-1) for i in 1:10, j in 1:10])
+    return Field((IDim, JDim), ones(Float64, 8, 8))
+    #return Field((IDim, JDim), [Float64((i-1) * 10 + j-1) for i in 1:10, j in 1:10])
 end
 
 # Test Cases (on a manually defined 10x10 matrix (0..99))
