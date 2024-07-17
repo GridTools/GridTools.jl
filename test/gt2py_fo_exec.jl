@@ -68,6 +68,8 @@ testwrapper(setup, mytest, 1, 2, 3)
 ```
 """
 function testwrapper(setupfunc::Union{Function,Nothing}, testfunc::Function, args...)
+    args_str = join(map(string, args), ", ")
+    println("Executing test '$(nameof(testfunc))' with args $args_str")
     if setupfunc === nothing
         testfunc(args...)
     else
@@ -140,6 +142,18 @@ function test_fo_cartesian_offset(backend::String)
 
     fo_cartesian_offset(inp, backend=backend, out=out, offset_provider=Dict("Koff" => K))
     @test all(out.data .== 2.0:15.0)
+end
+
+function test_fo_scalar_multiplication(backend::String)
+    inp = Field(Cell, collect(1.0:15.0))
+    out = Field(Cell, zeros(Float64, 15))
+
+    @field_operator function fo_scalar_mult(inp::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
+        return 4.0*inp
+    end
+
+    fo_scalar_mult(inp, backend=backend, out=out, offset_provider=Dict("Koff" => K))
+    @test all(out.data .== 4*(1.0:15.0))
 end
 
 function test_fo_cartesian_offset_composed(backend::String)
@@ -403,6 +417,9 @@ end
 function test_gt4py_fo_exec()
     testwrapper(nothing, test_fo_addition, "embedded")
     testwrapper(nothing, test_fo_addition, "py")
+
+    testwrapper(nothing, test_fo_scalar_multiplication, "embedded")
+    testwrapper(nothing, test_fo_scalar_multiplication, "py")
 
     testwrapper(nothing, test_fo_cartesian_offset, "embedded")
     testwrapper(nothing, test_fo_cartesian_offset, "py")

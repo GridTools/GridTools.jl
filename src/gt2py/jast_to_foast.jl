@@ -442,18 +442,18 @@ function from_type_hint(expr::Expr, closure_vars::Dict)
     param_type = expr.args
     if param_type[1] == :Tuple
         return ts.TupleType(
-            types = [recursive_make_symbol(arg) for arg in Base.tail(param_type)]
+            types = [recursive_make_symbol(arg) for arg in param_type[]]
         )
     elseif param_type[1] == :Field
         @assert length(param_type) == 3 (
             "Field type requires two arguments, got $(length(param_type)-1) in $(param_type)."
         )
 
-        dim = []
         (dims, dtype) = param_type[2:end]
-
+        
         # TODO: do some sanity checks here for example Field{Int64, Dims} will fail terribly
-
+        
+        dim = []
         for d in dims.args[2:end]
             @assert string(d) in keys(closure_vars)
             push!(dim, closure_vars[string(d)])
