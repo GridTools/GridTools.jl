@@ -221,7 +221,7 @@ function test_fo_neighbor_sum(offset_provider::Dict{String,Connectivity}, backen
     
     # Function to sum only the positive elements of each inner vector (to exclude the -1 in the connectivity)
     function sum_positive_elements(v, field_data)
-        return sum(x -> x > 0 ? field_data[Int(x)] : 0, v)
+        return sum(idx -> idx != -1 ? field_data[idx] : 0, v)
     end
 
     # Compute the ground truth manually computing the sum on that dimension
