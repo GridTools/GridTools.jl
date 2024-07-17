@@ -67,13 +67,14 @@ function pretty_print_matrix(mat::Matrix)::Nothing
 end
 
 function allocate_cartesian_case()::Field
+    # Create a matrix filled with a constant value (1 in this case)
     return Field((IDim, JDim), ones(Float64, 8, 8))
+
+    # Create a 10x10 matrix populated with values from 0 to 99 using an array comprehension
     #return Field((IDim, JDim), [Float64((i-1) * 10 + j-1) for i in 1:10, j in 1:10])
 end
 
-# Test Cases (on a manually defined 10x10 matrix (0..99))
 function execute_laplacian_operations()
-    # Create a 10x10 matrix populated with values from 0 to 99 using an array comprehension
     in_field = allocate_cartesian_case()
     
     # Print the original matrix
