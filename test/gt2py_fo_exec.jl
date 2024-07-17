@@ -69,7 +69,7 @@ testwrapper(setup, mytest, 1, 2, 3)
 """
 function testwrapper(setupfunc::Union{Function,Nothing}, testfunc::Function, args...)
     args_str = join(map(string, args), ", ")
-    println("Executing test '$(nameof(testfunc))' with args $args_str")
+    println("Executing '$(nameof(testfunc))' with args: $args_str")
     if setupfunc === nothing
         testfunc(args...)
     else
@@ -239,12 +239,30 @@ function test_fo_neighbor_sum(offset_provider::Dict{String,Connectivity}, backen
     @test out == expected_output
 end
 
-function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::String)
+function compute_expected_output_comparing_values(offset_provider::Dict{String, Connectivity}, a::Field{Tuple{Cell_}, Float64}, operation::Function)
+    expected_output = Field(Edge, zeros(Float64, 12))
+    E2C = offset_provider["E2C"]
+    for edge in 1:length(expected_output.data)
+        # Extract the neighboring cell indices for the current edge
+        neighbor_cells = E2C.data[edge, :]
+        # Filter out the -1 indices
+        valid_neighbors = filter(x -> x != -1, neighbor_cells)
+        # Compute the maximum/minimum value among the valid neighbors
+        if !isempty(valid_neighbors)
+            expected_output.data[edge] = operation(a[valid_neighbors])
+        else
+            throw("E2C Connectivity is not defined correctly. An edge cannot have no neighbors.")
+        end
+    end
+    return expected_output
+end
+
+function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::String, a::Field)
     a = Field(Cell, collect(1.0:15.0))
     out = Field(Edge, zeros(Float64, 12))
 
-    # Compute the ground truth manually computing max on that dimension
-    expected_output = a[Integer.(map(maximum, eachrow(offset_provider["E2C"].data)))]
+    # Compute the ground truth manually computing the maximum of the value of each neighbor
+    expected_output = expected_output = compute_expected_output_comparing_values(offset_provider, a, maximum)
 
     @field_operator function fo_max_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
         return max_over(a(E2C), axis=E2CDim)
@@ -254,15 +272,12 @@ function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::S
     @test out == expected_output
 end
 
-function test_fo_min_over(offset_provider::Dict{String,Connectivity}, backend::String)
+function test_fo_min_over(offset_provider::Dict{String,Connectivity}, backend::String, a::Field)
     a = Field(Cell, collect(1.0:15.0))
     out = Field(Edge, zeros(Float64, 12))
 
-    # Function to return the minimum positive element of each inner vector
-    mim_positive_element(v) = minimum(filter(x -> x > 0, v))
-
-    # Compute the ground truth manually computing min on that dimension
-    expected_output = a[Integer.(map(mim_positive_element, eachrow(offset_provider["E2C"].data)))] # We exclude the -1
+    # Compute the ground truth manually computing the minimum of the value of each neighbor
+    expected_output = compute_expected_output_comparing_values(offset_provider, a, minimum)
 
     @field_operator function fo_min_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
         return min_over(a(E2C), axis=E2CDim)
@@ -436,11 +451,21 @@ function test_gt4py_fo_exec()
     testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "embedded")
     testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "py")
 
-    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded")
-    testwrapper(setup_simple_connectivity, test_fo_max_over, "py")
+    # Test the comparison of values in the Fields
+    field_values_increasing = Field(Cell, collect(1.0:15.0))
+    field_values_decreasing = Field(Cell, reverse(collect(1.0:15.0)))
 
-    testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded")
-    testwrapper(setup_simple_connectivity, test_fo_min_over, "py")
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded", field_values_increasing)
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "py", field_values_increasing)
+
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded", field_values_decreasing)
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "py", field_values_decreasing)
+
+    testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded", field_values_increasing)
+    testwrapper(setup_simple_connectivity, test_fo_min_over, "py", field_values_increasing)
+
+    testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded", field_values_decreasing)
+    testwrapper(setup_simple_connectivity, test_fo_min_over, "py", field_values_decreasing)
 
     testwrapper(nothing, test_fo_simple_broadcast, "embedded")
     testwrapper(nothing, test_fo_simple_broadcast, "py")
