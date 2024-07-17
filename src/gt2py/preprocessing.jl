@@ -28,6 +28,21 @@ function unchain_compairs_pass(expr::Expr)::Expr
     end
 end
 
+"""
+Transform all arithmetic operations with more than two arguments into binary operations.
+"""
+function canonicalize_arithmetic_ops(expr)
+    if expr isa Expr
+        expr = Expr(expr.head, map(canonicalize_nary_ops, expr.args)...)  # visit all children
+
+        if expr.head == :call && expr.args[1] in bin_op && length(expr.args) > 3
+            op, a, b, tail... = expr.args
+            return canonicalize_nary_ops(Expr(:call, op, Expr(:call, op, a, b), tail...))
+        end
+    end
+    return expr
+end
+
 function recursive_unchain(args::Array)::Expr
     if length(args) == 3
         return Expr(:call, args[2], args[1], args[3])
