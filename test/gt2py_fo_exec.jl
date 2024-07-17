@@ -163,6 +163,14 @@ function setup_constant_cartesian_domain()
     return offset_provider
 end
 
+function field_increasing_values()
+    return Field(Cell, collect(1.0:15.0))
+end
+
+function field_decreasing_values()
+    return Field(Cell, reverse(collect(1.0:15.0)))
+end
+
 function constant_cartesian_domain()::Field
     return Field((IDim, JDim), ones(Float64, 8, 8))
 end
@@ -311,8 +319,8 @@ function compute_expected_output_comparing_values(offset_provider::Dict{String, 
     return expected_output
 end
 
-function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::String, a::Field)
-    a = Field(Cell, collect(1.0:15.0))
+function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::String, generate_field::Function)
+    a::Field = generate_field()
     out = Field(Edge, zeros(Float64, 12))
 
     # Compute the ground truth manually computing the maximum of the value of each neighbor
@@ -326,8 +334,8 @@ function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::S
     @test out == expected_output
 end
 
-function test_fo_min_over(offset_provider::Dict{String,Connectivity}, backend::String, a::Field)
-    a = Field(Cell, collect(1.0:15.0))
+function test_fo_min_over(offset_provider::Dict{String,Connectivity}, backend::String, generate_field::Function)
+    a::Field = generate_field()
     out = Field(Edge, zeros(Float64, 12))
 
     # Compute the ground truth manually computing the minimum of the value of each neighbor
@@ -564,21 +572,17 @@ function test_gt4py_fo_exec()
     testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "embedded")
     testwrapper(setup_simple_connectivity, test_fo_neighbor_sum, "py")
 
-    # Test the comparison of values in the Fields
-    field_values_increasing = Field(Cell, collect(1.0:15.0))
-    field_values_decreasing = Field(Cell, reverse(collect(1.0:15.0)))
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded", field_increasing_values)
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "py", field_increasing_values)
 
-    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded", field_values_increasing)
-    testwrapper(setup_simple_connectivity, test_fo_max_over, "py", field_values_increasing)
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded", field_decreasing_values)
+    testwrapper(setup_simple_connectivity, test_fo_max_over, "py", field_decreasing_values)
 
-    testwrapper(setup_simple_connectivity, test_fo_max_over, "embedded", field_values_decreasing)
-    testwrapper(setup_simple_connectivity, test_fo_max_over, "py", field_values_decreasing)
+    testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded", field_increasing_values)
+    testwrapper(setup_simple_connectivity, test_fo_min_over, "py", field_increasing_values)
 
-    testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded", field_values_increasing)
-    testwrapper(setup_simple_connectivity, test_fo_min_over, "py", field_values_increasing)
-
-    testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded", field_values_decreasing)
-    testwrapper(setup_simple_connectivity, test_fo_min_over, "py", field_values_decreasing)
+    testwrapper(setup_simple_connectivity, test_fo_min_over, "embedded", field_decreasing_values)
+    testwrapper(setup_simple_connectivity, test_fo_min_over, "py", field_decreasing_values)
 
     testwrapper(nothing, test_fo_simple_broadcast, "embedded")
     testwrapper(nothing, test_fo_simple_broadcast, "py")
