@@ -514,6 +514,7 @@ function test_lap(offset_provider::Dict{String, Dimension}, backend::String, dom
     end
 
     @test out_field.data[2:end-1, 2:end-1] == expected_out[2:end-1, 2:end-1]
+    # TODO: add in the future the test for the border values
 end
 
 function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String, domain_generator::Function, debug::Bool=false)
@@ -546,6 +547,7 @@ function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String,
     end
 
     @test out_field.data[3:end-2, 3:end-2] == expected_out[3:end-2, 3:end-2]
+    # TODO: add in the future the test for the border values
 end
 
 # Test Executions --------------------------------------------------------------------------------------------
