@@ -7,7 +7,7 @@ using Statistics
 using Profile
 using GridTools
 
-const global VISUALIZATION_FLAG::Bool=true
+const global VISUALIZATION_FLAG::Bool=false
 
 # Mesh Definitions --------------------------------------------------------------------------------------------
 # Define dimensions for the mesh
@@ -47,7 +47,7 @@ mesh = AtlasMesh(grid, num_level = 30)
 
 # Simulation Parameters ---------------------------------------------------------------------------------------
 δt = 1800.0  # time step in s
-niter = 50
+niter = 500
 eps = 1.0e-8
 
 # Calculate metric properties from the mesh
