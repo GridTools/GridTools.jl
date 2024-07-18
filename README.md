@@ -14,10 +14,10 @@ export GRIDTOOLS_JL_PATH="..."
 export GT4PY_PATH="..."
 # create python virtual environemnt
 #  make sure to use a python version that is compatible with GT4Py
-python -m venv venv
+python -m venv .venv
 # activate virtual env
 #  this command has be run everytime GridTools.jl is used
-source venv/bin/activate
+source .venv/bin/activate
 # clone gt4py
 git clone --branch fix_python_interp_path_in_cmake git@github.com:tehrengruber/gt4py.git
 #git clone git@github.com:GridTools/gt4py.git $GT4PY_PATH
