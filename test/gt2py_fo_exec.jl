@@ -1,5 +1,4 @@
 using Test
-using Printf
 using GridTools
 using MacroTools
 
@@ -81,12 +80,19 @@ end
 
 function pretty_print_matrix(mat::Matrix)::Nothing
     max_width = maximum(length(string(e)) for e in mat)
+    reqpadding(str::String, len::Int)::String = str * " " ^ (len - length(str))
 
     for row in eachrow(mat)
-        formatted_row = join([@sprintf("%*s", max_width, string(x)) for x in row], "  ")
+        formatted_row = join([reqpadding(string(x), max_width) for x in row], "  ")
         println(formatted_row)
     end
     return
+end
+
+function print_debug_info(title::String, mat::Matrix)::Nothing
+    println("----------------------------------------------------------------------------")
+    println(title)
+    pretty_print_matrix(mat)
 end
 
 function lap_ground_truth(in_field::Matrix{Float64})::Matrix{Float64}
@@ -506,11 +512,10 @@ function test_lap(offset_provider::Dict{String, Dimension}, backend::String, dom
     lap(in_field, offset_provider=offset_provider, backend=backend, out=out_field)
     
     if debug
-        println("\nOutput Matrix after applying lap() operator in the field operator:")
-        pretty_print_matrix(out_field.data)
-
-        println("\nExpected ground truth of laplacian computation without field operator:")
-        pretty_print_matrix(expected_out)
+        print_debug_info("Input Matrix before applying the laplacian:", in_field.data)
+        print_debug_info("Output Matrix after applying lap() operator in the field operator:", out_field.data)
+        print_debug_info("Expected ground truth of laplacian computation without field operator:", expected_out)
+        print("\n\n")
     end
 
     @test out_field.data[2:end-1, 2:end-1] == expected_out[2:end-1, 2:end-1]
@@ -539,11 +544,10 @@ function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String,
     lap_lap(in_field, offset_provider=offset_provider, backend=backend, out=out_field)
 
     if debug
-        println("\nOutput Matrix after applying lap(lap()) operator:")
-        pretty_print_matrix(out_field.data)
-
-        println("\nExpected ground truth of lap(lap()) computation without field operator:")
-        pretty_print_matrix(expected_out)
+        print_debug_info("Input Matrix before applying the laplacian of laplacian (lap_lap):", in_field.data)
+        print_debug_info("Output Matrix after applying lap(lap()) operator in the field operator:", out_field.data)
+        print_debug_info("Expected ground truth of lap(lap()) computation without field operator:", expected_out)
+        print("\n\n")
     end
 
     @test out_field.data[3:end-2, 3:end-2] == expected_out[3:end-2, 3:end-2]
