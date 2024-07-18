@@ -4,6 +4,8 @@ push!(LOAD_PATH, path_to_package)
 using BenchmarkTools
 using GridTools
 
+include("../test/mesh_definitions.jl")
+
 SUITE = BenchmarkGroup()
 
 SUITE["arith_broadcast"] = BenchmarkGroup()
