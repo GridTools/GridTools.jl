@@ -161,7 +161,7 @@ function setup_simple_connectivity()::Dict{String,Connectivity}
     return offset_provider
 end
 
-function setup_constant_cartesian_domain()
+function setup_cartesian_offset_provider()
     offset_provider = Dict{String, Dimension}(
                     "Ioff" => IDim,
                     "Joff" => JDim
@@ -617,17 +617,17 @@ function test_gt4py_fo_exec()
 
     # TODO: add support for the embedded backend when the dims is changing due to cartesian offsets
     # (Note: check the debug flag for pretty printing the outputs)
-    # testwrapper(setup_constant_cartesian_domain, test_lap, "embedded", constant_cartesian_domain)
-    testwrapper(setup_constant_cartesian_domain, test_lap, "py", constant_cartesian_domain)
+    # testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", constant_cartesian_domain)
+    testwrapper(setup_cartesian_offset_provider, test_lap, "py", constant_cartesian_domain)
 
-    # testwrapper(setup_constant_cartesian_domain, test_lap, "embedded", simple_cartesian_domain)
-    testwrapper(setup_constant_cartesian_domain, test_lap, "py", simple_cartesian_domain)
+    # testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", simple_cartesian_domain)
+    testwrapper(setup_cartesian_offset_provider, test_lap, "py", simple_cartesian_domain)
 
-    # testwrapper(setup_constant_cartesian_domain, test_lap_lap, "embedded", constant_cartesian_domain)
-    testwrapper(setup_constant_cartesian_domain, test_lap_lap, "py", constant_cartesian_domain)
+    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", constant_cartesian_domain)
+    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", constant_cartesian_domain)
     
-    # testwrapper(setup_constant_cartesian_domain, test_lap_lap, "embedded", simple_cartesian_domain)
-    testwrapper(setup_constant_cartesian_domain, test_lap_lap, "py", simple_cartesian_domain)
+    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", simple_cartesian_domain)
+    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", simple_cartesian_domain)
 end
 
 @testset "Testset GT2Py fo exec" test_gt4py_fo_exec()
