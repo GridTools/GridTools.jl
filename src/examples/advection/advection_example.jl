@@ -7,6 +7,8 @@ using Statistics
 using Profile
 using GridTools
 
+const global VISUALIZATION_FLAG::Bool=true
+
 # Mesh Definitions --------------------------------------------------------------------------------------------
 # Define dimensions for the mesh
 Cell_ = Dimension{:Cell_, HORIZONTAL}
@@ -78,6 +80,63 @@ for i = 1:6
 end
 for j = 1:3
     tmp_fields[@sprintf("tmp_edge_%d", j)] = Field((Edge, K), zeros(edge_dim, k_dim))
+end
+
+# Function to precompute the nearest vertex mapping
+function precompute_mapping(mesh, xlim, ylim, grid_size)
+    x_range = range(xlim[1], stop=xlim[2], length=grid_size)
+    y_range = range(ylim[1], stop=ylim[2], length=grid_size)
+    mapping = fill(0, grid_size, grid_size)
+
+    for i in 1:grid_size
+        for j in 1:grid_size
+            x = x_range[i]
+            y = y_range[j]
+            # Find the nearest vertex in the unstructured mesh
+            distances = [(mesh.xyarc[v, 1] - x)^2 + (mesh.xyarc[v, 2] - y)^2 for v in 1:size(mesh.xyarc, 1)]
+            nearest_vertex = argmin(distances)
+            mapping[i, j] = nearest_vertex
+        end
+    end
+
+    return mapping
+end
+
+# Function to convert matrix to ASCII art
+function matrix_to_ascii(matrix::Matrix{Float64})
+    ascii_art = ""
+    chars = [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@']
+    min_val = minimum(matrix)
+    max_val = maximum(matrix)
+    range_val = max_val - min_val
+
+    for row in eachrow(matrix)
+        for value in row
+            index = Int(floor((value - min_val) / range_val * (length(chars) - 1))) + 1
+            ascii_art *= chars[index]
+        end
+        ascii_art *= '\n'
+    end
+
+    return ascii_art
+end
+
+# Function to print the current state as ASCII art
+function print_state_ascii(state, mesh, mapping, timestep, grid_size=50)
+    # Clear the terminal
+    print("\033c")
+
+    println("Timestep $timestep")
+    grid_data = zeros(Float64, grid_size, grid_size)
+
+    for i in 1:grid_size
+        for j in 1:grid_size
+            grid_data[i, j] = state.rho.data[mapping[i, j]]
+        end
+    end
+
+    ascii_art = matrix_to_ascii(grid_data)
+    println(ascii_art)
 end
 
 # Initial Conditions -------------------------------------------------------------------------------------------
@@ -186,6 +245,12 @@ nabla_z(
     offset_provider = mesh.offset_provider
 )
 
+if VISUALIZATION_FLAG
+    # Precompute the mapping between the unstructured domain to the structured one for ASCII art visualization
+    grid_size = 50
+    mapping = precompute_mapping(mesh, xlim, ylim, grid_size)
+end
+
 # Main Simulation Loop ----------------------------------------------------------------------------------------
 for i = 1:niter
     # Perform the upwind advection scheme to update the scalar field (rho)
@@ -207,6 +272,11 @@ for i = 1:niter
 
     # Print the current timestep
     println("Timestep $i")
+
+    if VISUALIZATION_FLAG
+        # Print the current state as ASCII art every 5 timesteps
+        print_state_ascii(state, mesh, mapping, i, grid_size)
+    end
 
     # TODO: make a function out of this switch
     # Swap the current and next state
