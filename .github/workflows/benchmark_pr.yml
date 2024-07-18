@@ -17,7 +17,20 @@ jobs:
             - uses: julia-actions/setup-julia@v1
               with:
                 version: "1.8"
-            - uses: julia-actions/cache@v1
+            - uses: actions/cache@v2
+              name: Cache Julia packages
+              with:
+                path: ~/.julia
+                key: ${{ runner.os }}-julia-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}
+                restore-keys: |
+                  ${{ runner.os }}-julia-
+            - uses: actions/cache@v2
+              name: Cache Python packages
+              with:
+                path: ~/gt4py-venv
+                key: ${{ runner.os }}-python-${{ hashFiles('**/requirements-dev.txt') }}
+                restore-keys: |
+                  ${{ runner.os }}-python-
             - name: Set up Python environment
               run: |
                 sudo apt-get update
