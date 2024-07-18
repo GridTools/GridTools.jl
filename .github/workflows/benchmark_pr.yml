@@ -21,11 +21,18 @@ jobs:
             - name: Set up Python environment
               run: |
                 sudo apt-get update
-                sudo apt-get install python3-pip
-                python3 -m pip install gt4py.next
+                sudo apt-get install python3-pip python3-venv
+                python3 -m venv ~/gt4py-venv
+                source ~/gt4py-venv/bin/activate
+                python3 -m pip install --upgrade pip
+            - name: Install GT4Py from specific branch
+              run: |
+                git clone --branch fix_python_interp_path_in_cmake https://github.com/tehrengruber/gt4py.git ~/gt4py
+                pip install -r ~/gt4py/requirements-dev.txt
+                pip install -e ~/gt4py
             - name: Configure PyCall
               run: |
-                julia -e 'using Pkg; ENV["PYTHON"]="/usr/bin/python3"; Pkg.build("PyCall");'
+                julia -e 'using Pkg; ENV["PYTHON"]="~/gt4py-venv/bin/python3"; Pkg.build("PyCall");'
             - name: Extract Package Name from Project.toml
               id: extract-package-name
               run: |
