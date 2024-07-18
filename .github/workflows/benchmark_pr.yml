@@ -30,9 +30,9 @@ jobs:
                 git clone --branch fix_python_interp_path_in_cmake https://github.com/tehrengruber/gt4py.git ~/gt4py
                 pip install -r ~/gt4py/requirements-dev.txt
                 pip install -e ~/gt4py
-            - name: Configure PyCall
+            - name: Install and Configure PyCall
               run: |
-                julia -e 'using Pkg; ENV["PYTHON"]="~/gt4py-venv/bin/python3"; Pkg.build("PyCall");'
+                julia --project -e 'using Pkg; Pkg.add("PyCall"); ENV["PYTHON"]="~/gt4py-venv/bin/python3"; Pkg.build("PyCall");'
             - name: Extract Package Name from Project.toml
               id: extract-package-name
               run: |
