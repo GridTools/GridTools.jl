@@ -1,4 +1,4 @@
-# advection test
+# advection example
 using Printf
 using Debugger
 using Statistics
@@ -25,7 +25,7 @@ E2V = FieldOffset("E2V", source = Vertex, target = (Edge, E2VDim))
 V2E = FieldOffset("V2E", source = Edge, target = (Vertex, V2EDim))
 Koff = FieldOffset("Koff", source = K, target = K)
 
-include("atlas_mesh.jl")
+include("../../atlas/atlas_mesh.jl")
 include("state_container.jl")
 include("metric.jl")
 include("advection.jl")
