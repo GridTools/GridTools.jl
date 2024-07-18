@@ -6,14 +6,17 @@ This README provides instructions on how to run the `advection_example.jl` scrip
 
 1. **Python Environment and Atlas4py Installation**:
    - Ensure that your Python environment is activated.
-   - Install the `atlas4py` package using the following command:
      ```sh
      source .venv/bin/activate # Ignore if the env is already activated
+     ```
+   - Install the `atlas4py` package using the following command:
+     ```sh
      pip install -i https://test.pypi.org/simple/ atlas4py
      ```
 
 2. **Enabling Visualization** (optional):
-   - The script has a `VISUALIZATION_FLAG` that can be set to enable or disable visualization on the terminal. Ensure that this flag is set to `true` in the `advection_example.jl` script if you wish to enable visualization. #TODO add a small note related to the fact that other parameters could be changed in the `Simulation Parameters` section, like the number of iterations.
+   - The script has a `VISUALIZATION_FLAG` that can be set to enable or disable visualization on the terminal. Ensure that this flag is set to `true` in the `advection_example.jl` script if you wish to enable visualization.
+   - Note: Other parameters such as the number of iterations can be changed in the `# Simulation Parameters` section of the script.
 
 #### Running the Simulation
 
