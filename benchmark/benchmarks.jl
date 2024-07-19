@@ -4,7 +4,11 @@ push!(LOAD_PATH, path_to_package)
 using BenchmarkTools
 using GridTools
 
-include("../test/mesh_definitions.jl")
+# Mesh definitions -------------------------------------------------------------------------------------------
+const global Cell_ = Dimension{:Cell_, HORIZONTAL}
+const global K_ = Dimension{:K_, HORIZONTAL}
+const global Cell = Cell_()
+const global K = K_()
 
 SUITE = BenchmarkGroup()
 
