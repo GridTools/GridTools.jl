@@ -87,7 +87,7 @@ end
 function lap_reference(in_field::Matrix{Float64})::Matrix{Float64}
     nrows, ncols = size(in_field)
     out_field = zeros(Float64, nrows, ncols) # Initialize out_field as a matrix of zeros
-    out_field .= in_field # Copy inplace: to keep the initial values in the border
+    out_field[2:end-1, 2:end-1] .= in_field[2:end-1, 2:end-1] # Border values are not computed with the stencil operation
     for i in 2:(nrows - 1)
         for j in 2:(ncols - 1)
             # Perform the stencil operation
@@ -105,9 +105,8 @@ end
 function lap_lap_reference(in_field::Matrix{Float64})
     x_length, y_length = size(in_field)
     out_field = zeros(Float64, x_length, y_length)
-    out_field .= in_field
-    temp_field = lap_reference(lap_reference(in_field))  # Perform the laplap operation on the entire field
-    #out_field[3:end-2, 3:end-2] .= temp_field[3:end-2, 3:end-2] # Restrict the copy to avoid the copy in the unchanged border
+    out_field[3:end-2, 3:end-2] .= in_field[3:end-2, 3:end-2] # Border values are not computed with the stencil operation
+    out_field = lap_reference(lap_reference(in_field))  # Perform the laplap operation on the entire field
     return out_field
 end
 
@@ -605,17 +604,17 @@ function test_gt4py_fo_exec()
 
     # TODO: add support for the embedded backend when the dims is changing due to cartesian offsets
     # (Note: check the debug flag for pretty printing the outputs)
-    # testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", constant_cartesian_domain)
-    testwrapper(setup_cartesian_offset_provider, test_lap, "py", constant_cartesian_domain)
+    # testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", constant_cartesian_field)
+    testwrapper(setup_cartesian_offset_provider, test_lap, "py", constant_cartesian_field)
 
-    # testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", simple_cartesian_domain)
-    testwrapper(setup_cartesian_offset_provider, test_lap, "py", simple_cartesian_domain)
+    # testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", simple_cartesian_field)
+    testwrapper(setup_cartesian_offset_provider, test_lap, "py", simple_cartesian_field)
 
-    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", constant_cartesian_domain)
-    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", constant_cartesian_domain)
+    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", constant_cartesian_field)
+    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", constant_cartesian_field)
     
-    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", simple_cartesian_domain)
-    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", simple_cartesian_domain)
+    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", simple_cartesian_field)
+    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", simple_cartesian_field)
 end
 
 @testset "Testset GT2Py fo exec" test_gt4py_fo_exec()
