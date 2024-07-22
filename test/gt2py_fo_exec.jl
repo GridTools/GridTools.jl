@@ -78,24 +78,13 @@ function testwrapper(setupfunc::Union{Function,Nothing}, testfunc::Function, arg
     end
 end
 
-function pretty_print_matrix(mat::Matrix)::Nothing
-    max_width = maximum(length(string(e)) for e in mat)
-    reqpadding(str::String, len::Int)::String = str * " " ^ (len - length(str))
-
-    for row in eachrow(mat)
-        formatted_row = join([reqpadding(string(x), max_width) for x in row], "  ")
-        println(formatted_row)
-    end
-    return
-end
-
 function print_debug_info(title::String, mat::Matrix)::Nothing
     println("----------------------------------------------------------------------------")
     println(title)
-    pretty_print_matrix(mat)
+    display(mat)
 end
 
-function lap_ground_truth(in_field::Matrix{Float64})::Matrix{Float64}
+function lap_reference(in_field::Matrix{Float64})::Matrix{Float64}
     nrows, ncols = size(in_field)
     out_field = zeros(Float64, nrows, ncols) # Initialize out_field as a matrix of zeros
     out_field .= in_field # Copy inplace: to keep the initial values in the border
@@ -113,12 +102,12 @@ function lap_ground_truth(in_field::Matrix{Float64})::Matrix{Float64}
     return out_field
 end
 
-function lap_lap_ground_truth(in_field::Matrix{Float64})
+function lap_lap_reference(in_field::Matrix{Float64})
     x_length, y_length = size(in_field)
     out_field = zeros(Float64, x_length, y_length)
     out_field .= in_field
-    temp_field = lap_ground_truth(lap_ground_truth(in_field))  # Perform the laplap operation on the entire field
-    out_field[3:end-2, 3:end-2] .= temp_field[3:end-2, 3:end-2] # Restrict the copy to avoid the copy in the unchanged border
+    temp_field = lap_reference(lap_reference(in_field))  # Perform the laplap operation on the entire field
+    #out_field[3:end-2, 3:end-2] .= temp_field[3:end-2, 3:end-2] # Restrict the copy to avoid the copy in the unchanged border
     return out_field
 end
 
@@ -174,18 +163,18 @@ function field_increasing_values()
 end
 
 function field_decreasing_values()
-    return Field(Cell, reverse(collect(1.0:15.0)))
+    return Field(Cell, collect(15.0:-1:1.0))
 end
 
-function constant_cartesian_domain()::Field
+function constant_cartesian_field()::Field
     return Field((IDim, JDim), ones(Float64, 8, 8))
 end
 
-function simple_cartesian_domain()::Field
+function simple_cartesian_field()::Field
     return Field((IDim, JDim), [Float64((i-1) * 5 + j-1) for i in 1:5, j in 1:5])
 end
 
-# Test Definitions -------------------------------------------------------------------------------------------
+    return Field(Cell, 15.0:-1:1.0)
 
 function test_fo_addition(backend::String)
     a = Field(Cell, collect(1.0:15.0))
@@ -499,7 +488,7 @@ function test_lap(offset_provider::Dict{String, Dimension}, backend::String, dom
     in_field = domain_generator()
     x_length, y_length = size(in_field.data)
     out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
-    expected_out = lap_ground_truth(in_field.data)
+    expected_out = lap_reference(in_field.data)
     
     @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
         return -4.0*in_field +
@@ -526,7 +515,7 @@ function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String,
     in_field = domain_generator()
     x_length, y_length = size(in_field.data)
     out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
-    expected_out = lap_lap_ground_truth(in_field.data)
+    expected_out = lap_lap_reference(in_field.data)
 
     @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
         return -4.0*in_field +
@@ -537,8 +526,7 @@ function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String,
     end
     
     @field_operator function lap_lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
-        tmp = lap(in_field)
-        return lap(tmp)
+        return lap(lap(in_field))
     end
 
     lap_lap(in_field, offset_provider=offset_provider, backend=backend, out=out_field)
