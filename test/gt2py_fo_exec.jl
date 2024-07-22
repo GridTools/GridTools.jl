@@ -84,10 +84,30 @@ function print_debug_info(title::String, mat::Matrix)::Nothing
     display(mat)
 end
 
+function copy_borders!(dest_matrix::Matrix{Float64}, src_matrix::Matrix{Float64}, border_width::Int)
+    nrows, ncols = size(src_matrix)
+    
+    # Ensure both matrices have the same size and the border width is feasible
+    @assert size(dest_matrix) == size(src_matrix) "Both matrices must be of the same size"
+    @assert border_width > 0 && border_width <= nrows ÷ 2 && border_width <= ncols ÷ 2 "Border width must be positive and less than half the smallest dimension"
+
+    # Top and bottom border rows
+    dest_matrix[1:border_width, :] .= src_matrix[1:border_width, :]
+    dest_matrix[(nrows-border_width+1):end, :] .= src_matrix[(nrows-border_width+1):end, :]
+
+    # Left and right border columns
+    dest_matrix[:, 1:border_width] .= src_matrix[:, 1:border_width]
+    dest_matrix[:, (ncols-border_width+1):end] .= src_matrix[:, (ncols-border_width+1):end]
+
+    return dest_matrix
+end
+
 function lap_reference(in_field::Matrix{Float64})::Matrix{Float64}
     nrows, ncols = size(in_field)
+    @assert nrows >= 3 && ncols >= 3 "Input matrix must be at least 3x3 to compute stencil operations."
+
     out_field = zeros(Float64, nrows, ncols) # Initialize out_field as a matrix of zeros
-    out_field[2:end-1, 2:end-1] .= in_field[2:end-1, 2:end-1] # Border values are not computed with the stencil operation
+
     for i in 2:(nrows - 1)
         for j in 2:(ncols - 1)
             # Perform the stencil operation
@@ -99,14 +119,19 @@ function lap_reference(in_field::Matrix{Float64})::Matrix{Float64}
         end
     end
 
+    copy_borders!(out_field, in_field, 1) # Border values are not computed with the stencil operation
     return out_field
 end
 
 function lap_lap_reference(in_field::Matrix{Float64})
     x_length, y_length = size(in_field)
+    @assert x_length >= 5 && y_length >= 5 "Input matrix must be at least 5x5 to compute double laplacian."
+
     out_field = zeros(Float64, x_length, y_length)
-    out_field[3:end-2, 3:end-2] .= in_field[3:end-2, 3:end-2] # Border values are not computed with the stencil operation
-    out_field = lap_reference(lap_reference(in_field))  # Perform the laplap operation on the entire field
+
+    out_field = lap_reference(lap_reference(in_field)) 
+
+    copy_borders!(out_field, in_field, 2) # Border values are not computed with the stencil operation
     return out_field
 end
 
@@ -280,7 +305,7 @@ function test_fo_neighbor_sum(offset_provider::Dict{String,Connectivity}, backen
         return sum(idx -> idx != -1 ? field_data[idx] : 0, v)
     end
 
-    # Compute the ground truth manually computing the sum on that dimension
+    # Compute the reference manually computing the sum on that dimension
     edge_to_cell_data = offset_provider["E2C"].data
     expected_output = Float64[]
     for i in axes(edge_to_cell_data, 1)
@@ -317,7 +342,7 @@ function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::S
     a::Field = generate_field()
     out = Field(Edge, zeros(Float64, 12))
 
-    # Compute the ground truth manually computing the maximum of the value of each neighbor
+    # Compute the reference manually computing the maximum of the value of each neighbor
     expected_output = expected_output = compute_expected_output_comparing_values(offset_provider, a, maximum)
 
     @field_operator function fo_max_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
@@ -332,7 +357,7 @@ function test_fo_min_over(offset_provider::Dict{String,Connectivity}, backend::S
     a::Field = generate_field()
     out = Field(Edge, zeros(Float64, 12))
 
-    # Compute the ground truth manually computing the minimum of the value of each neighbor
+    # Compute the reference manually computing the minimum of the value of each neighbor
     expected_output = compute_expected_output_comparing_values(offset_provider, a, minimum)
 
     @field_operator function fo_min_over(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
@@ -464,7 +489,7 @@ function test_nested_fo(backend::String)
     b = Field(Cell, ones(15))
     out = Field(Cell, zeros(15))
 
-    # Compute the Ground Truth
+    # Compute the Reference
     intermediate_result = a.data .+ b.data
     expected_output = intermediate_result .+ a.data
 
@@ -479,8 +504,17 @@ function test_nested_fo(backend::String)
 
     nested_fo(a, b, backend=backend, out=out)
 
-    # Test against the Ground Truth
+    # Test against the reference
     @test out.data == expected_output
+end
+
+# Define the Laplacian field operation in the global scope for accessibility across multiple tests.
+@field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
+    return -4.0*in_field +
+        in_field(Ioff[1]) +
+        in_field(Ioff[-1]) +
+        in_field(Joff[1]) +
+        in_field(Joff[-1])
 end
 
 function test_lap(offset_provider::Dict{String, Dimension}, backend::String, domain_generator::Function, debug::Bool=false)
@@ -488,26 +522,21 @@ function test_lap(offset_provider::Dict{String, Dimension}, backend::String, dom
     x_length, y_length = size(in_field.data)
     out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
     expected_out = lap_reference(in_field.data)
-    
-    @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
-        return -4.0*in_field +
-            in_field(Ioff[1]) +
-            in_field(Ioff[-1]) +
-            in_field(Joff[1]) +
-            in_field(Joff[-1])
-    end
 
     lap(in_field, offset_provider=offset_provider, backend=backend, out=out_field)
     
     if debug
         print_debug_info("Input Matrix before applying the laplacian:", in_field.data)
         print_debug_info("Output Matrix after applying lap() operator in the field operator:", out_field.data)
-        print_debug_info("Expected ground truth of laplacian computation without field operator:", expected_out)
+        print_debug_info("Expected reference of laplacian computation without field operator:", expected_out)
         print("\n\n")
     end
 
     @test out_field.data[2:end-1, 2:end-1] == expected_out[2:end-1, 2:end-1]
+
     # TODO: add in the future the test for the border values
+    # @test out_field.data[1, :] == expected_out[1, :] && out_field.data[end, :] == expected_out[end, :] \
+    #  out_field.data[:, 1] == expected_out[:, 1] && out_field.data[:, end] == expected_out[:, end]
 end
 
 function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String, domain_generator::Function, debug::Bool=false)
@@ -516,14 +545,6 @@ function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String,
     out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
     expected_out = lap_lap_reference(in_field.data)
 
-    @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
-        return -4.0*in_field +
-            in_field(Ioff[1]) +
-            in_field(Ioff[-1]) +
-            in_field(Joff[1]) +
-            in_field(Joff[-1])
-    end
-    
     @field_operator function lap_lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
         return lap(lap(in_field))
     end
@@ -533,7 +554,7 @@ function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String,
     if debug
         print_debug_info("Input Matrix before applying the laplacian of laplacian (lap_lap):", in_field.data)
         print_debug_info("Output Matrix after applying lap(lap()) operator in the field operator:", out_field.data)
-        print_debug_info("Expected ground truth of lap(lap()) computation without field operator:", expected_out)
+        print_debug_info("Expected reference of lap(lap()) computation without field operator:", expected_out)
         print("\n\n")
     end
 
