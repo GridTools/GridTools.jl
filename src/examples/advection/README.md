@@ -23,7 +23,7 @@ This README provides instructions on how to run the `advection_example.jl` scrip
 1. **Running the Script**:
    - Use the following command to run the `advection_example.jl` script with Julia:
      ```sh
-     julia --color=yes --project=. $GRIDTOOLS_JL_PATH/GridTools.jl/src/examples/advection/advection_example.jl
+     julia --color=yes --project=$GRIDTOOLS_JL_PATH/GridTools.jl $GRIDTOOLS_JL_PATH/GridTools.jl/src/examples/advection/advection_example.jl
      ```
 
 #### Example
