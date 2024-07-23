@@ -203,7 +203,9 @@ end
 function test_fo_addition(backend::String)
     a = Field(Cell, collect(1.0:15.0))
     b = Field(Cell, collect(-1.0:-1:-15.0))
-    out_field = Field(Cell, zeros(Float64, 15))
+    @assert size(a.data) == size(b.data) "Fields a and b do not have the same size of data."
+
+    out_field = similar_field(a)
 
     @field_operator function fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
         return a .+ b
@@ -227,7 +229,7 @@ end
 
 function test_fo_scalar_multiplication(backend::String)
     a = Field(Cell, collect(1.0:15.0))
-    out_field = Field(Cell, zeros(Float64, 15))
+    out_field = similar_field(a)
 
     @field_operator function fo_scalar_mult(inp::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
         return 4.0*inp
@@ -252,7 +254,7 @@ end
 
 function test_fo_nested_if_else(backend::String)
     a = Field(Cell, collect(Int32, 1:15))  # TODO(tehrengruber): if we don't use the right dtype here we get a horrible error in python
-    out_field = Field(Cell, zeros(Int32, 15))
+    out_field = similar_field(a)
 
     @field_operator function fo_nested_if_else(f::Field{Tuple{Cell_},Int32})::Field{Tuple{Cell_},Int32}
         tmp = f
