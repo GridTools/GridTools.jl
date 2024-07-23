@@ -102,37 +102,37 @@ function copy_borders!(dest_matrix::Matrix{Float64}, src_matrix::Matrix{Float64}
     return dest_matrix
 end
 
-function lap_reference(in_field::Matrix{Float64})::Matrix{Float64}
-    nrows, ncols = size(in_field)
+function lap_reference(in_field_data::Matrix{Float64})::Matrix{Float64}
+    nrows, ncols = size(in_field_data)
     @assert nrows >= 3 && ncols >= 3 "Input matrix must be at least 3x3 to compute stencil operations."
 
-    out_field = zeros(Float64, nrows, ncols) # Initialize out_field as a matrix of zeros
+    out_field_data = similar(in_field_data)
 
     for i in 2:(nrows - 1)
         for j in 2:(ncols - 1)
             # Perform the stencil operation
-            out_field[i, j] = -4 * in_field[i, j] + 
-                                in_field[i+1, j]   + 
-                                in_field[i-1, j]   + 
-                                in_field[i, j+1]   + 
-                                in_field[i, j-1]
+            out_field_data[i, j] = -4 * in_field_data[i, j] + 
+                                in_field_data[i+1, j]   + 
+                                in_field_data[i-1, j]   + 
+                                in_field_data[i, j+1]   + 
+                                in_field_data[i, j-1]
         end
     end
 
-    copy_borders!(out_field, in_field, 1) # Border values are not computed with the stencil operation
-    return out_field
+    copy_borders!(out_field_data, in_field_data, 1) # Border values are not computed with the stencil operation
+    return out_field_data
 end
 
-function lap_lap_reference(in_field::Matrix{Float64})
-    x_length, y_length = size(in_field)
+function lap_lap_reference(in_field_data::Matrix{Float64})
+    x_length, y_length = size(in_field_data)
     @assert x_length >= 5 && y_length >= 5 "Input matrix must be at least 5x5 to compute double laplacian."
 
-    out_field = zeros(Float64, x_length, y_length)
+    out_field_data = similar(in_field_data)
 
-    out_field = lap_reference(lap_reference(in_field)) 
+    out_field_data = lap_reference(lap_reference(in_field_data)) 
 
-    copy_borders!(out_field, in_field, 2) # Border values are not computed with the stencil operation
-    return out_field
+    copy_borders!(out_field_data, in_field_data, 2) # Border values are not computed with the stencil operation
+    return out_field_data
 end
 
 # Setup ------------------------------------------------------------------------------------------------------
@@ -198,61 +198,61 @@ function simple_cartesian_field()::Field
     return Field((IDim, JDim), [Float64((i-1) * 5 + j-1) for i in 1:5, j in 1:5])
 end
 
-    return Field(Cell, 15.0:-1:1.0)
+    # return Field(Cell, 15.0:-1:1.0) TODO: adjust this computation
 
 function test_fo_addition(backend::String)
     a = Field(Cell, collect(1.0:15.0))
     b = Field(Cell, collect(-1.0:-1:-15.0))
-    out = Field(Cell, zeros(Float64, 15))
+    out_field = Field(Cell, zeros(Float64, 15))
 
     @field_operator function fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
         return a .+ b
     end
 
-    fo_addition(a, b, backend=backend, out=out)
-    @test all(out.data .== 0)
+    fo_addition(a, b, backend=backend, out=out_field)
+    @test all(out_field.data .== 0)
 end
 
 function test_fo_cartesian_offset(backend::String)
-    inp = Field(K, collect(1.0:15.0))
-    out = Field(K, zeros(Float64, 14)) # field is one smaller since we shift by one
+    a = Field(K, collect(1.0:15.0))
+    out_field = Field(K, zeros(Float64, 14)) # field is one smaller since we shift by one
 
     @field_operator function fo_cartesian_offset(inp::Field{Tuple{K_},Float64})::Field{Tuple{K_},Float64}
         return inp(Koff[1])
     end
 
-    fo_cartesian_offset(inp, backend=backend, out=out, offset_provider=Dict("Koff" => K))
-    @test all(out.data .== 2.0:15.0)
+    fo_cartesian_offset(a, backend=backend, out=out_field, offset_provider=Dict("Koff" => K))
+    @test all(out_field.data .== 2.0:15.0)
 end
 
 function test_fo_scalar_multiplication(backend::String)
-    inp = Field(Cell, collect(1.0:15.0))
-    out = Field(Cell, zeros(Float64, 15))
+    a = Field(Cell, collect(1.0:15.0))
+    out_field = Field(Cell, zeros(Float64, 15))
 
     @field_operator function fo_scalar_mult(inp::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
         return 4.0*inp
     end
 
-    fo_scalar_mult(inp, backend=backend, out=out, offset_provider=Dict("Koff" => K))
-    @test all(out.data .== 4*(1.0:15.0))
+    fo_scalar_mult(a, backend=backend, out=out_field, offset_provider=Dict("Koff" => K))
+    @test all(out_field.data .== 4*(1.0:15.0))
 end
 
 function test_fo_cartesian_offset_composed(backend::String)
-    inp = Field(K, collect(1.0:15.0))
-    out = Field(K, zeros(Float64, 12)) # field is one smaller since we shift by one
+    a = Field(K, collect(1.0:15.0))
+    out_field = Field(K, zeros(Float64, 12)) # field is one smaller since we shift by one
 
     @field_operator function fo_cartesian_offset_composed(inp::Field{Tuple{K_},Float64})::Field{Tuple{K_},Float64}
         tmp = inp(Koff[1])
         return tmp(Koff[2])
     end
 
-    fo_cartesian_offset_composed(inp, backend=backend, out=out, offset_provider=Dict("Koff" => K))
-    @test all(out.data .== 4.0:15.0)
+    fo_cartesian_offset_composed(a, backend=backend, out=out_field, offset_provider=Dict("Koff" => K))
+    @test all(out_field.data .== 4.0:15.0)
 end
 
 function test_fo_nested_if_else(backend::String)
     a = Field(Cell, collect(Int32, 1:15))  # TODO(tehrengruber): if we don't use the right dtype here we get a horrible error in python
-    out = Field(Cell, zeros(Int32, 15))
+    out_field = Field(Cell, zeros(Int32, 15))
 
     @field_operator function fo_nested_if_else(f::Field{Tuple{Cell_},Int32})::Field{Tuple{Cell_},Int32}
         tmp = f
@@ -279,26 +279,27 @@ function test_fo_nested_if_else(backend::String)
         return tmp
     end
 
-    fo_nested_if_else(a, backend=backend, out=out)
-    @test all(out.data .== collect(22:36))
+    fo_nested_if_else(a, backend=backend, out=out_field)
+    @test all(out_field.data .== collect(22:36))
 end
 
 function test_fo_remapping(offset_provider::Dict{String,Connectivity}, backend::String)
     a = Field(Cell, collect(1.0:15.0))
-    out = Field(Edge, zeros(Float64, 12))
     expected_output = a[offset_provider["E2C"][:, 1]] # First column of the edge to cell connectivity table
+
+    out_field = Field(Edge, similar(expected_output))
 
     @field_operator function fo_remapping(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
         return a(E2C[1])
     end
 
-    fo_remapping(a, offset_provider=offset_provider, backend=backend, out=out)
-    @test all(out.data .== expected_output)
+    fo_remapping(a, offset_provider=offset_provider, backend=backend, out=out_field)
+    @test all(out_field.data .== expected_output)
 end
 
 function test_fo_neighbor_sum(offset_provider::Dict{String,Connectivity}, backend::String)
     a = Field(Cell, collect(5.0:17.0)*3)
-    out = Field(Edge, zeros(Float64, 12))
+    out_field = Field(Edge, zeros(Float64, 12))
     
     # Function to sum only the positive elements of each inner vector (to exclude the -1 in the connectivity)
     function sum_positive_elements(v, field_data)
@@ -316,8 +317,8 @@ function test_fo_neighbor_sum(offset_provider::Dict{String,Connectivity}, backen
         return neighbor_sum(a(E2C), axis=E2CDim)
     end
 
-    fo_neighbor_sum(a, offset_provider=offset_provider, backend=backend, out=out)
-    @test out == expected_output
+    fo_neighbor_sum(a, offset_provider=offset_provider, backend=backend, out=out_field)
+    @test out_field == expected_output
 end
 
 function compute_expected_output_comparing_values(offset_provider::Dict{String, Connectivity}, a::Field{Tuple{Cell_}, Float64}, operation::Function)
@@ -340,7 +341,7 @@ end
 
 function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::String, generate_field::Function)
     a::Field = generate_field()
-    out = Field(Edge, zeros(Float64, 12))
+    out_field = Field(Edge, zeros(Float64, 12))
 
     # Compute the reference manually computing the maximum of the value of each neighbor
     expected_output = expected_output = compute_expected_output_comparing_values(offset_provider, a, maximum)
@@ -349,13 +350,13 @@ function test_fo_max_over(offset_provider::Dict{String,Connectivity}, backend::S
         return max_over(a(E2C), axis=E2CDim)
     end
 
-    fo_max_over(a, offset_provider=offset_provider, backend=backend, out=out)
-    @test out == expected_output
+    fo_max_over(a, offset_provider=offset_provider, backend=backend, out=out_field)
+    @test out_field == expected_output
 end
 
 function test_fo_min_over(offset_provider::Dict{String,Connectivity}, backend::String, generate_field::Function)
     a::Field = generate_field()
-    out = Field(Edge, zeros(Float64, 12))
+    out_field = Field(Edge, zeros(Float64, 12))
 
     # Compute the reference manually computing the minimum of the value of each neighbor
     expected_output = compute_expected_output_comparing_values(offset_provider, a, minimum)
@@ -364,39 +365,39 @@ function test_fo_min_over(offset_provider::Dict{String,Connectivity}, backend::S
         return min_over(a(E2C), axis=E2CDim)
     end
 
-    fo_min_over(a, offset_provider=offset_provider, backend=backend, out=out)
-    @test out == expected_output
+    fo_min_over(a, offset_provider=offset_provider, backend=backend, out=out_field)
+    @test out_field == expected_output
 end
 
 function test_fo_simple_broadcast(backend::String)
-    data = collect(1.0:15.0)
     broadcast_num_dims = 5
-    a = Field(Cell, data)
-    out = Field((Cell, K), zeros(15, broadcast_num_dims))
+    a = Field(Cell, collect(1.0:15.0))
 
     # Compute the expected output by broadcasting a
     expected_output = [a[i] for i in 1:15, j in 1:broadcast_num_dims]
+
+    out_field = Field((Cell, K), similar(expected_output))
 
     @field_operator function fo_simple_broadcast(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_,K_},Float64}
         return broadcast(a, (Cell, K))
     end
 
-    fo_simple_broadcast(a, backend=backend, out=out)
-    @test out == expected_output
+    fo_simple_broadcast(a, backend=backend, out=out_field)
+    @test out_field == expected_output
 end
 
 function test_fo_scalar_broadcast(backend::String)
-    out = Field((Cell, K), fill(0.0, (10, 10)))
-
     # Compute the expected output by broadcasting the value
     expected_output = fill(5.0, (10, 10))
+
+    out_field = Field((Cell, K), similar(expected_output))
 
     @field_operator function fo_scalar_broadcast()::Field{Tuple{Cell_,K_},Float64}
         return broadcast(5.0, (Cell, K))
     end
 
-    fo_scalar_broadcast(backend=backend, out=out)
-    @test out == expected_output
+    fo_scalar_broadcast(backend=backend, out=out_field)
+    @test out_field == expected_output
 end
 
 function test_fo_where(backend::String)
@@ -407,7 +408,7 @@ function test_fo_where(backend::String)
                              true  false; 
                              false false; 
                              true  true  ])
-    out = Field((Cell, K), zeros(5, 2))
+    out_field = similar_field(a)
 
     expected_output =  [ 1 -1
                         -1  7
@@ -419,13 +420,13 @@ function test_fo_where(backend::String)
         return where(mask, a, b)
     end
 
-    fo_where(mask, a, b, backend=backend, out=out)
-    @test out == expected_output 
+    fo_where(mask, a, b, backend=backend, out=out_field)
+    @test out_field == expected_output 
 end
 
 function test_fo_astype(backend::String)
     a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2))) # Floating Point
-    out = Field((Cell, K), zeros(Int64, (6, 2)))
+    out_field = similar_field(a, Int64) # Integer
 
     expected_values = reshape(collect(1.0:12.0), (6, 2))
 
@@ -433,15 +434,15 @@ function test_fo_astype(backend::String)
         return convert(Int64, a) # Integer
     end
 
-    fo_astype(a, backend=backend, out=out)
-    @test out == expected_values
-    @test eltype(out.data) == Int64
+    fo_astype(a, backend=backend, out=out_field)
+    @test out_field == expected_values
+    @test eltype(out_field.data) == Int64
     @test eltype(a.data) == Float64
 end
 
 function test_fo_sin(backend::String)
     a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
-    out = Field((Cell, K), zeros((6, 2)))
+    out_field = similar_field(a)
 
     # Compute the expected output using the sin function
     expected_output = sin.(reshape(collect(1.0:12.0), (6, 2)))
@@ -450,13 +451,13 @@ function test_fo_sin(backend::String)
         return sin.(a)
     end
 
-    fo_sin(a, backend=backend, out=out)
-    @test isapprox(out.data, expected_output, atol=1e-6)
+    fo_sin(a, backend=backend, out=out_field)
+    @test isapprox(out_field.data, expected_output, atol=1e-6)
 end
 
 function test_fo_asinh(backend::String)
     a = Field((Cell, K), reshape(collect(1.0:12.0), (6, 2)))
-    out = Field((Cell, K), zeros((6, 2)))
+    out_field = similar_field(a)
 
     # Compute the expected output using the asinh function
     expected_output = asinh.(reshape(collect(1.0:12.0), (6, 2)))
@@ -465,8 +466,8 @@ function test_fo_asinh(backend::String)
         return asinh.(a)
     end
 
-    fo_asinh(a, backend=backend, out=out)
-    @test isapprox(out.data, expected_output, atol=1e-6)
+    fo_asinh(a, backend=backend, out=out_field)
+    @test isapprox(out_field.data, expected_output, atol=1e-6)
 end
 
 function test_fo_offset_array(backend::String)
@@ -487,7 +488,7 @@ end
 function test_nested_fo(backend::String)
     a = Field(Cell, collect(1.0:15.0))
     b = Field(Cell, ones(15))
-    out = Field(Cell, zeros(15))
+    out_field = similar_field(a)
 
     # Compute the Reference
     intermediate_result = a.data .+ b.data
@@ -502,10 +503,10 @@ function test_nested_fo(backend::String)
         return res .+ a
     end
 
-    nested_fo(a, b, backend=backend, out=out)
+    nested_fo(a, b, backend=backend, out=out_field)
 
     # Test against the reference
-    @test out.data == expected_output
+    @test out_field.data == expected_output
 end
 
 # Define the Laplacian field operation in the global scope for accessibility across multiple tests.
@@ -517,8 +518,8 @@ end
         in_field(Joff[-1])
 end
 
-function test_lap(offset_provider::Dict{String, Dimension}, backend::String, domain_generator::Function, debug::Bool=false)
-    in_field = domain_generator()
+function test_lap(offset_provider::Dict{String, Dimension}, backend::String, field_generator::Function, debug::Bool=false)
+    in_field = field_generator()
     x_length, y_length = size(in_field.data)
     out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
     expected_out = lap_reference(in_field.data)
@@ -539,8 +540,8 @@ function test_lap(offset_provider::Dict{String, Dimension}, backend::String, dom
     #  out_field.data[:, 1] == expected_out[:, 1] && out_field.data[:, end] == expected_out[:, end]
 end
 
-function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String, domain_generator::Function, debug::Bool=false)
-    in_field = domain_generator()
+function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String, field_generator::Function, debug::Bool=false)
+    in_field = field_generator()
     x_length, y_length = size(in_field.data)
     out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
     expected_out = lap_lap_reference(in_field.data)

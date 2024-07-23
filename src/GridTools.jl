@@ -19,6 +19,7 @@ export Dimension,
     VERTICAL,
     LOCAL,
     Field,
+    similar_field,
     Connectivity,
     FieldOffset,
     neighbor_sum,
@@ -208,7 +209,7 @@ function Field(
 end
 
 """
-    similar(f::Field, ::Type{T}=eltype(f.data), dims::Dims=size(f.data)) where {T}
+    similar_field(f::Field, ::Type{T}=eltype(f.data), dims::Dims=size(f.data)) where {T}
 
 Create a new `Field` object similar to `f` but with a different element type `T` or different dimensions `dims`.
 
@@ -243,7 +244,7 @@ Int64
 
 ```
 """
-function Base.similar(f::Field, ::Type{T}=eltype(f.data), dims::Dims=size(f.data)) where {T}
+function similar_field(f::Field, ::Type{T}=eltype(f.data), dims::Dims=size(f.data)) where {T}
     new_data = similar(f.data, T, dims)
     return Field(f.dims, new_data, f.broadcast_dims, f.origin)
 end
