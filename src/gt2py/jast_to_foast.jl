@@ -266,6 +266,7 @@ end
 
 function visit_(sym::Val{:call}, args::Array, outer_loc)
     if args[1] in bin_op
+        @assert length(args)==3 "Expected a binary operation. AST must be canonicalized using `canonicalize_arithmetic_ops` first."
         return foast.BinOp(
             op = visit(args[1]),
             left = visit(args[2], outer_loc),
