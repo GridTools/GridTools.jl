@@ -1,3 +1,6 @@
+
+# ExampleMeshes.Unstructured -----------------------------------------------------------------------------------------------
+
 const global Cell_ = Dimension{:Cell_, HORIZONTAL}
 const global K_ = Dimension{:K_, HORIZONTAL}
 const global Edge_ = Dimension{:Edge_, HORIZONTAL}
@@ -23,3 +26,13 @@ const global V2E = FieldOffset("V2E", source=Edge, target=(Vertex, V2EDim))
 const global E2C = FieldOffset("E2C", source=Cell, target=(Edge, E2CDim))
 const global C2E = FieldOffset("C2E", source=Edge, target=(Cell, C2EDim))
 const global Koff = FieldOffset("Koff", source=K, target=K)
+
+# ExampleMeshes.Cartesian --------------------------------------------------------------------------------------------------
+
+const global IDim_ = Dimension{:IDim_, HORIZONTAL}
+const global JDim_ = Dimension{:JDim_, HORIZONTAL}
+const global IDim = IDim_()
+const global JDim = JDim_()
+
+const global Ioff = FieldOffset("Ioff", source=IDim, target=IDim)
+const global Joff = FieldOffset("Joff", source=JDim, target=JDim)
