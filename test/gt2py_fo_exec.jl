@@ -175,11 +175,10 @@ function setup_simple_connectivity()::Dict{String,Connectivity}
 end
 
 function setup_cartesian_offset_provider()
-    offset_provider = Dict{String, Dimension}(
+    return Dict{String, Dimension}(
                     "Ioff" => IDim,
                     "Joff" => JDim
                     )
-    return offset_provider
 end
 
 function field_increasing_values()
