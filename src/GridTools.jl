@@ -705,8 +705,14 @@ macro module_vars()
                 name => Core.eval(Base, name) for
                 name in [:Int64, :Int32, :Float32, :Float64]
             )
+            all_names = names(@__MODULE__)
+            used_modules = ccall(:jl_module_usings, Any, (Any,), @__MODULE__)
+            for m in used_modules
+                append!(all_names, names(m))
+            end
+            # TODO: cleanup this hacky
             module_vars =
-                Dict(name => Core.eval(@__MODULE__, name) for name in names(@__MODULE__))
+                Dict(name => Core.eval(@__MODULE__, name) for name in all_names)
             local_vars = Base.@locals
             merge(base_vars, module_vars, local_vars, GridTools.builtin_op)
         end
@@ -743,5 +749,7 @@ macro field_operator(expr::Expr)
 end
 
 generate_unique_name(name::Symbol, value::Integer = 0) = Symbol("$(name)ᐞ$(value)")
+
+include("ExampleMeshes.jl")
 
 end
