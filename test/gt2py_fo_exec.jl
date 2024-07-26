@@ -1,8 +1,8 @@
 using Test
 using GridTools
+using GridTools.ExampleMeshes.Unstructured
+using GridTools.ExampleMeshes.Cartesian
 using MacroTools
-
-include("mesh_definitions.jl")
 
 struct TestFailedException <: Exception
     message::String
