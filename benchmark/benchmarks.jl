@@ -10,7 +10,7 @@ const global Cell_ = Dimension{:Cell_, HORIZONTAL}
 const global Cell = Cell_()
 
 """
-    julia_broadcast_addition_setup(ARRAY_SIZE::Int64)
+    array_broadcast_addition_setup(ARRAY_SIZE::Int64)
 
 Setup function for the Julia broadcast addition benchmark.
 
@@ -21,7 +21,7 @@ Setup function for the Julia broadcast addition benchmark.
 - `a, b`: Two randomly generated arrays of integers of size `ARRAY_SIZE`.
 - `data_size`: The total size of the data processed.
 """
-function julia_broadcast_addition_setup(ARRAY_SIZE::Int64)
+function array_broadcast_addition_setup(ARRAY_SIZE::Int64)::Tuple{Array{Float64,1}, Array{Float64,1}, Int64}
     a = rand(Float64, ARRAY_SIZE)
     b = rand(Float64, ARRAY_SIZE)
     data_size = sizeof(a) + sizeof(b)  # Total bytes processed
@@ -39,7 +39,7 @@ Core operation for the Julia broadcast addition benchmark.
 # Returns
 - The result of element-wise addition of `a` and `b`.
 """
-function broadcast_addition_array(a::Array{Float64}, b::Array{Float64})
+function broadcast_addition_array(a::Array{Float64}, b::Array{Float64})::Array{Float64,1}
     return a .+ b
 end
 
@@ -55,12 +55,12 @@ Useful to asses and track possible overhead on fields.
 # Returns
 - The result of element-wise addition of the data of the fields `a` and `b`.
 """
-function broadcast_addition_fields(a::Field, b::Field)
+function broadcast_addition_fields(a::Field, b::Field)::Field
     return a .+ b
 end
 
 """
-    fo_broadcast_addition_setup(FIELD_DATA_SIZE::Int64)
+    fields_broadcast_addition_setup(FIELD_DATA_SIZE::Int64)
 
 Setup function for the field operator broadcast addition benchmark.
 
@@ -71,7 +71,7 @@ Setup function for the field operator broadcast addition benchmark.
 - `a, b`: Two randomly generated fields of floats of size `FIELD_DATA_SIZE`.
 - `out`: An output field similar to `a`.
 """
-function fo_broadcast_addition_setup(FIELD_DATA_SIZE::Int64)
+function fields_broadcast_addition_setup(FIELD_DATA_SIZE::Int64)::Tuple{Field, Field, Field}
     a = Field(Cell, rand(Float64, FIELD_DATA_SIZE))
     b = Field(Cell, rand(Float64, FIELD_DATA_SIZE))
     out = GridTools.similar_field(a)
@@ -106,7 +106,7 @@ Function to compute the memory bandwidth for the addition benchmarks.
 # Returns
 - The computed memory bandwidth in GB/s.
 """
-function compute_memory_bandwidth_addition(results, a, b, out)
+function compute_memory_bandwidth_addition(results, a, b, out)::Float64
     @assert sizeof(a.data) == sizeof(b.data) == sizeof(out.data)
     data_size = sizeof(a.data) + sizeof(b.data) + sizeof(out.data)  # Read a and b, write to out
     time_in_seconds = median(results.times) / 1e9  # Convert ns to s
@@ -121,15 +121,15 @@ suite = BenchmarkGroup()
 suite["addition"] = BenchmarkGroup()
 
 # Julia broadcast addition benchmark
-a, b, data_size = julia_broadcast_addition_setup(STREAM_SIZE)
+a, b, data_size = array_broadcast_addition_setup(STREAM_SIZE)
 suite["addition"]["array_broadcast_addition"] = @benchmarkable $broadcast_addition_array($a, $b)
 
 # Field broadcast addition benchmark
-a, b, out = fo_broadcast_addition_setup(STREAM_SIZE)
+a, b, out = fields_broadcast_addition_setup(STREAM_SIZE)
 suite["addition"]["fields_broadcast_addition"] = @benchmarkable $broadcast_addition_fields($a, $b)
 
 # Field Operator broadcast addition benchmark
-a, b, out = fo_broadcast_addition_setup(STREAM_SIZE)
+a, b, out = fields_broadcast_addition_setup(STREAM_SIZE)
 suite["addition"]["field_op_broadcast_addition"] = @benchmarkable $fo_addition($a, $b, backend="embedded", out=$out)
 
 # Run the benchmark suite
@@ -145,6 +145,6 @@ array_bandwidth = compute_memory_bandwidth_addition(array_results, a, b, a) # Ou
 fields_bandwidth = compute_memory_bandwidth_addition(fields_results, a, b, a) # Out is a temporary array with size a
 fo_bandwidth = compute_memory_bandwidth_addition(fo_results, a, b, out)
 
-println("Array broadcast addition bandwidth: $array_bandwidth GB/s")
-println("Fields data broadcast addition bandwidth: $fields_bandwidth GB/s")
-println("Field Operator broadcast addition bandwidth: $fo_bandwidth GB/s")
+println("Array broadcast addition bandwidth:\t\t$array_bandwidth GB/s")
+println("Fields data broadcast addition bandwidth:\t$fields_bandwidth GB/s")
+println("Field Operator broadcast addition bandwidth:\t$fo_bandwidth GB/s")
