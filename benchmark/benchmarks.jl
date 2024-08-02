@@ -1,103 +1,150 @@
-using Pkg
-path_to_package = joinpath(@__DIR__, "..")  # Assuming the benchmarks.jl file is in the "benchmark" directory
-push!(LOAD_PATH, path_to_package)
 using BenchmarkTools
+using Statistics
 using GridTools
 
-# Mesh definitions -------------------------------------------------------------------------------------------
+# Data size
+const global STREAM_SIZE = 10000000 # 10 million
+
+# Mesh definitions
 const global Cell_ = Dimension{:Cell_, HORIZONTAL}
-const global K_ = Dimension{:K_, HORIZONTAL}
 const global Cell = Cell_()
-const global K = K_()
-const global Edge_ = Dimension{:Edge_, HORIZONTAL}
-const global Edge = Edge_()
-const global E2CDim_ = Dimension{:E2CDim_, LOCAL}
-const global E2CDim = E2CDim_()
 
+"""
+    julia_broadcast_addition_setup(ARRAY_SIZE::Int64)
 
-function setup_simple_connectivity()::Dict{String,Connectivity}
-    edge_to_cell_table = [
-        [1 -1];
-        [3 -1];
-        [3 -1];
-        [4 -1];
-        [5 -1];
-        [6 -1];
-        [1 6];
-        [1 2];
-        [2 3];
-        [2 4];
-        [4 5];
-        [5 6]
-    ]
+Setup function for the Julia broadcast addition benchmark.
 
-    cell_to_edge_table = [
-        [1 7 8];
-        [8 9 10];
-        [2 3 9];
-        [4 10 11];
-        [5 11 12];
-        [6 7 12]
-    ]
+# Arguments
+- `ARRAY_SIZE::Int64`: The size of the arrays to be generated.
 
-    E2C_offset_provider = Connectivity(edge_to_cell_table, Cell, Edge, 2)
-    C2E_offset_provider = Connectivity(cell_to_edge_table, Edge, Cell, 3)
-
-    offset_provider = Dict{String,Connectivity}(
-        "E2C" => E2C_offset_provider,
-        "C2E" => C2E_offset_provider,
-        "E2CDim" => E2C_offset_provider # TODO(lorenzovarese): this is required for the embedded backend (note: python already uses E2C)
-    )
-
-    return offset_provider
+# Returns
+- `a, b`: Two randomly generated arrays of integers of size `ARRAY_SIZE`.
+- `data_size`: The total size of the data processed.
+"""
+function julia_broadcast_addition_setup(ARRAY_SIZE::Int64)
+    a = rand(Float64, ARRAY_SIZE)
+    b = rand(Float64, ARRAY_SIZE)
+    data_size = sizeof(a) + sizeof(b)  # Total bytes processed
+    return a, b, data_size
 end
 
-SUITE = BenchmarkGroup()
+"""
+    broadcast_addition_array(a::Array{Float64}, b::Array{Float64})
 
-# Legacy Suite with first tests
-# SUITE["arith_broadcast"] = BenchmarkGroup()
+Core operation for the Julia broadcast addition benchmark.
 
-# a = rand(1000, 1000); b = rand(1000,1000); c = rand(1000,1000)
-# af = Field((Cell, K), rand(1000, 1000)); bf = Field((Cell, K), rand(1000, 1000)); cf = Field((Cell, K), rand(1000, 1000))
-# SUITE["arith_broadcast"]["arrays"] = @benchmarkable a .+ b .- c
-# SUITE["arith_broadcast"]["fields"] = @benchmarkable af .+ bf .- cf
+# Arguments
+- `a, b`: Two arrays to be added.
 
-SUITE["field_operator"] = BenchmarkGroup()
-
-# Benchmark for field operator addition
-function benchmark_fo_addition()
-    a = Field(Cell, collect(1.0:15.0))
-    b = Field(Cell, collect(-1.0:-1:-15.0))
-    out = Field(Cell, zeros(Float64, 15))
-
-    @field_operator function fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
-        return a .+ b
-    end
-
-    @benchmarkable $fo_addition($a, $b, backend="embedded", out=$out) #setup=(
-        #  a = Field(Cell, collect(1.0:15.0)); 
-        # b = Field(Cell, collect(-1.0:-1:-15.0)); 
-        # out_field = Field(Cell, zeros(Float64, 15)); 
-        # @field_operator function fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64} return a .+ b end;
-        # )
+# Returns
+- The result of element-wise addition of `a` and `b`.
+"""
+function broadcast_addition_array(a::Array{Float64}, b::Array{Float64})
+    return a .+ b
 end
 
-SUITE["field_operator"]["addition"] = benchmark_fo_addition()
+"""
+    broadcast_addition(a::Field, b::Field)
 
-# Benchmark for neighbor sum
-function benchmark_fo_neighbor_sum()
-    offset_provider = setup_simple_connectivity();
-    a = Field(Cell, collect(5.0:17.0) * 3);
-    E2C = FieldOffset("E2C", source=Cell, target=(Edge, E2CDim))
-    out_field = Field(Edge, zeros(Float64, 12))
+Core operation for the broadcast addition of two Field benchmark.
+Useful to asses and track possible overhead on fields.
 
-    @field_operator function fo_neighbor_sum(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
-        return neighbor_sum(a(E2C), axis=E2CDim)
-    end
+# Arguments
+- `a, b`: Two field to be added.
 
-    @benchmarkable $fo_neighbor_sum($a, offset_provider=$offset_provider, out=$out_field) 
+# Returns
+- The result of element-wise addition of the data of the fields `a` and `b`.
+"""
+function broadcast_addition_fields(a::Field, b::Field)
+    return a .+ b
 end
 
-SUITE["field_operator"]["neighbor_sum"] = benchmark_fo_neighbor_sum()
+"""
+    fo_broadcast_addition_setup(FIELD_DATA_SIZE::Int64)
 
-run(SUITE, verbose = true, seconds = 1)
+Setup function for the field operator broadcast addition benchmark.
+
+# Arguments
+- `FIELD_DATA_SIZE::Int64`: The size of the fields to be generated.
+
+# Returns
+- `a, b`: Two randomly generated fields of floats of size `FIELD_DATA_SIZE`.
+- `out`: An output field similar to `a`.
+"""
+function fo_broadcast_addition_setup(FIELD_DATA_SIZE::Int64)
+    a = Field(Cell, rand(Float64, FIELD_DATA_SIZE))
+    b = Field(Cell, rand(Float64, FIELD_DATA_SIZE))
+    out = GridTools.similar_field(a)
+    return a, b, out
+end
+
+"""
+    fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
+
+Core operation for the field operator broadcast addition benchmark.
+
+# Arguments
+- `a, b`: Two fields to be added.
+
+# Returns
+- The result of element-wise addition of `a` and `b`.
+"""
+@field_operator function fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
+    return a .+ b
+end
+
+"""
+    compute_memory_bandwidth_addition(results, a, b, out)
+
+Function to compute the memory bandwidth for the addition benchmarks.
+
+# Arguments
+- `results`: Benchmark results.
+- `a, b`: The input arrays/fields used in the benchmark.
+- `out`: The output array/field of the benchmark.
+
+# Returns
+- The computed memory bandwidth in GB/s.
+"""
+function compute_memory_bandwidth_addition(results, a, b, out)
+    @assert sizeof(a.data) == sizeof(b.data) == sizeof(out.data)
+    data_size = sizeof(a.data) + sizeof(b.data) + sizeof(out.data)  # Read a and b, write to out
+    time_in_seconds = median(results.times) / 1e9  # Convert ns to s
+    bandwidth = data_size / time_in_seconds / 1e9  # GB/s
+    return bandwidth
+end
+
+# Create the benchmark suite
+suite = BenchmarkGroup()
+
+# Define the main groups
+suite["addition"] = BenchmarkGroup()
+
+# Julia broadcast addition benchmark
+a, b, data_size = julia_broadcast_addition_setup(STREAM_SIZE)
+suite["addition"]["array_broadcast_addition"] = @benchmarkable $broadcast_addition_array($a, $b)
+
+# Field broadcast addition benchmark
+a, b, out = fo_broadcast_addition_setup(STREAM_SIZE)
+suite["addition"]["fields_broadcast_addition"] = @benchmarkable $broadcast_addition_fields($a, $b)
+
+# Field Operator broadcast addition benchmark
+a, b, out = fo_broadcast_addition_setup(STREAM_SIZE)
+suite["addition"]["field_op_broadcast_addition"] = @benchmarkable $fo_addition($a, $b, backend="embedded", out=$out)
+
+# Run the benchmark suite
+results = run(suite)
+
+# Process the results
+array_results = results["addition"]["array_broadcast_addition"]
+fields_results = results["addition"]["fields_broadcast_addition"]
+fo_results = results["addition"]["field_op_broadcast_addition"]
+
+# Process and print the results
+array_bandwidth = compute_memory_bandwidth_addition(array_results, a, b, a) # Out is a temporary array with size a
+fields_bandwidth = compute_memory_bandwidth_addition(fields_results, a, b, a) # Out is a temporary array with size a
+fo_bandwidth = compute_memory_bandwidth_addition(fo_results, a, b, out)
+
+println("Array broadcast addition bandwidth: $array_bandwidth GB/s")
+println("Fields data broadcast addition bandwidth: $fields_bandwidth GB/s")
+println("Field Operator broadcast addition bandwidth: $fo_bandwidth GB/s")
