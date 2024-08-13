@@ -1,4 +1,4 @@
-# Advection Example
+# Advection Miniapp
 # This script demonstrates an advection simulation using the Atlas library.
 
 using Printf
