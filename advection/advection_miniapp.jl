@@ -49,7 +49,7 @@ mesh = AtlasMesh(grid, num_level = 30)
 # Simulation Parameters ---------------------------------------------------------------------------------------
 δt = 1800.0  # time step in s
 niter = 50
-eps = 1.0e-8
+ε = 1.0e-8
 
 # Calculate metric properties from the mesh
 metric = m_from_mesh(mesh)
