@@ -710,6 +710,12 @@ macro module_vars()
             for m in used_modules
                 append!(all_names, names(m))
             end
+            
+            # Filtering symbols that are exported but not defined
+            filter!(all_names) do name
+                return isdefined(@__MODULE__, name)
+            end
+
             # TODO: cleanup this hacky
             module_vars =
                 Dict(name => Core.eval(@__MODULE__, name) for name in all_names)
