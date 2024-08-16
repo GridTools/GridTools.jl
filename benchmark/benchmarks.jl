@@ -270,7 +270,7 @@ The summation is performed across the dimension specified by `E2CDim`, ensuring 
     return neighbor_sum(a(E2C), axis=E2CDim)
 end
 
-# Benchmark --------------------------------------------------------------------------------------------------
+# Benchmarks -------------------------------------------------------------------------------------------------
 
 # Create the benchmark suite
 suite = BenchmarkGroup()
@@ -379,3 +379,60 @@ println("\tTime taken: $(ns_to_ms(median(remapping_results.times))) ms\n")
 
 println("Field Operator Neighbor Sum:")
 println("\tTime taken: $(ns_to_ms(median(neighbor_sum_results.times))) ms\n")
+
+# Advection Benchmarks 
+
+include("../advection/advection_miniapp.jl")
+
+println("Starting julia embedded benchmark")
+
+suite["advection"]["mpdata_program_julia_embedded"] = @benchmark mpdata_program(
+        state.rho,
+        δt,
+        ϵ,
+        mesh.vol,
+        metric.gac,
+        state.vel[1],
+        state.vel[2],
+        state.vel[3],
+        mesh.pole_edge_mask,
+        mesh.dual_face_orientation,
+        mesh.dual_face_normal_weighted_x,
+        mesh.dual_face_normal_weighted_y,
+        out = state_next.rho,
+        offset_provider = mesh.offset_provider
+    )
+
+println("Finished Julia embedded benchmark")
+
+# TODO: disabled because the backend is not currently supporting it (the backend is too slow)
+# println("Starting julia python benchmark")
+
+# suite["advection"]["mpdata_program_julia_pyback"] = @benchmark mpdata_program(
+#         state.rho,
+#         δt,
+#         ϵ,
+#         mesh.vol,
+#         metric.gac,
+#         state.vel[1],
+#         state.vel[2],
+#         state.vel[3],
+#         mesh.pole_edge_mask,
+#         mesh.dual_face_orientation,
+#         mesh.dual_face_normal_weighted_x,
+#         mesh.dual_face_normal_weighted_y,
+#         out = state_next.rho,
+#         offset_provider = mesh.offset_provider,
+#         backend = "py"
+#     )
+
+# println("Finished Julia python backend benchmark")
+
+mpdata_emb_results = results["advection"]["mpdata_program_julia_embedded"]
+# mpdata_pyback_results = results["advection"]["mpdata_program_julia_pyback"]
+
+println("mpdata_program julia embedded version:")
+println("\tTime taken: $(ns_to_ms(median(mpdata_emb_results.times))) ms\n")
+
+# println("mpdata_program julia with python backend:")
+# println("\tTime taken: $(ns_to_ms(median(mpdata_pyback_results.times))) ms\n")
