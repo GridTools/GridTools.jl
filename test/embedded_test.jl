@@ -1,7 +1,9 @@
 using Statistics
+using GridTools
+using GridTools.ExampleMeshes.Unstructured
+using Test
 
 # Setup ------------------------------------------------------------------------------------------------------------------------------
-include("mesh_definitions.jl")
 
 cell_values = Field(Cell, [1.0, 1.0, 2.0, 3.0, 5.0, 8.0])
 edge_to_cell_table = [
