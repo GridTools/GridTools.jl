@@ -1,0 +1,50 @@
+stages:
+  - build_base_stage0_image
+  - run_tests
+
+variables:
+  GPU_ENABLED: "true"
+  CUDA_DRIVER_VERSION: "470.57.02"
+
+include:
+  - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.cscs.yml'
+
+.gt-container-builder:
+  extends: .container-builder
+  timeout: 2h
+  before_script:
+    - DOCKER_TAG=`eval cat $WATCH_FILECHANGES | sha256sum | head -c 16`
+    - |
+      if [[ "$CI_COMMIT_MESSAGE" =~ "Trigger container rebuild $ENV_VAR_NAME" ]]; then
+        echo "Rebuild triggered."
+        export CSCS_REBUILD_POLICY="always"
+      fi
+    - export PERSIST_IMAGE_NAME=$PERSIST_IMAGE_NAME:$DOCKER_TAG
+    - echo "$ENV_VAR_NAME=$PERSIST_IMAGE_NAME" > build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+  variables:
+    # the variables below MUST be set to a sane value. They are mentioned here, to see
+    # which variables should be set.
+    DOCKERFILE: ci/docker/Dockerfile.base # overwrite with the real path of the Dockerfile
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/base/my_base_image # Important: No version-tag
+    WATCH_FILECHANGES: 'ci/docker/Dockerfile.base "path/to/another/file with whitespaces.txt"'
+    ENV_VAR_NAME: BASE_IMAGE
+
+build_base_stage0_image_job:
+  stage: build_base_stage0_image
+  extends: .gt-container-builder
+  variables:
+    DOCKERFILE: docker/base/Dockerfile
+    DOCKER_BUILD_ARGS: '["INSTALL_CUDA_DRIVER=$GPU_ENABLED", "CUDA_DRIVER_VERSION=$CUDA_DRIVER_VERSION"]'
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/pasc_kilos/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_image
+    WATCH_FILECHANGES: 'ci/utils/docker/base/Dockerfile'
+    ENV_VAR_NAME: BASE_IMAGE_STAGE0
+
+#build_image:
+#  stage: build_image
+#  extends: .container-builder
+#  variables:
+#    DOCKERFILE: docker/base/Dockerfile
+#    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE2"]'
