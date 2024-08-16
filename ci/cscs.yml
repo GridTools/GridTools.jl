@@ -5,6 +5,7 @@ stages:
 variables:
   GPU_ENABLED: "true"
   CUDA_DRIVER_VERSION: "470.57.02"
+  PROJECT_NAME: gridtools_jl
 
 include:
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
@@ -41,6 +42,16 @@ build_base_stage0_image_job:
     PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/gridtools/${CONTAINER_RUNNER}/gridtools_jl_base_image
     WATCH_FILECHANGES: 'docker/base/Dockerfile'
     ENV_VAR_NAME: BASE_IMAGE_STAGE0
+
+build_base_stage1_image_job:
+  stage: build_base_stage1_image
+  extends: .pmap-container-builder
+  variables:
+    DOCKERFILE: ci/utils/docker/base_spack_deps/Dockerfile
+    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE0", "PROJECT_NAME=$PROJECT_NAME", "SPACK_ENV_FILE=spack-${CONTAINER_RUNNER}.yaml"]'
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/pasc_kilos/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_stage1_image
+    WATCH_FILECHANGES: 'ci/utils/docker/base/Dockerfile ci/utils/docker/base_spack_deps/Dockerfile'  # TODO: inherit from stage0
+    ENV_VAR_NAME: BASE_IMAGE_STAGE1
 
 #build_image:
 #  stage: build_image

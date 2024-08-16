@@ -1,0 +1,10 @@
+spack:
+  specs:
+  - python@3.10
+  - py-pip
+  - boost
+  - cmake
+  - py-cupy cuda_arch=60 ^cuda+allow-unsupported-compilers ^nccl+cuda cuda_arch=60
+  view: true
+  concretizer:
+    unify: true
