@@ -2,11 +2,10 @@
 using BenchmarkTools
 using Statistics
 using GridTools  
+using GridTools.ExampleMeshes.Unstructured
 
 const N = 1_000_000
 const DIM_SIZE = sqrt(N) |> floor |> Int
-
-include("../test/mesh_definitions.jl")
 
 function create_large_connectivity(size::Int)
     edge_to_cell_table = hcat([rand(1:size, 2) for _ in 1:size]...)
