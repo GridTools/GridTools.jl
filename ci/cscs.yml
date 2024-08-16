@@ -1,5 +1,6 @@
 stages:
   - build_base_stage0_image
+  - build_base_stage1_image
   - run_tests
 
 variables:
