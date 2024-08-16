@@ -39,7 +39,7 @@ build_base_stage0_image_job:
     DOCKERFILE: docker/base/Dockerfile
     DOCKER_BUILD_ARGS: '["INSTALL_CUDA_DRIVER=$GPU_ENABLED", "CUDA_DRIVER_VERSION=$CUDA_DRIVER_VERSION"]'
     PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/pasc_kilos/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_image
-    WATCH_FILECHANGES: 'ci/utils/docker/base/Dockerfile'
+    WATCH_FILECHANGES: 'docker/base/Dockerfile'
     ENV_VAR_NAME: BASE_IMAGE_STAGE0
 
 #build_image:
