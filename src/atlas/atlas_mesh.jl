@@ -260,7 +260,11 @@ struct AtlasMesh
             "V2V" => v2v,
             "V2E" => v2e,
             "E2V" => e2v,
-            "Koff" => K
+            "Koff" => K,
+            # TODO: cleanup
+            "V2VDim" => v2v,
+            "V2EDim" => v2e,
+            "E2VDim" => e2v,
         )
 
         remote_indices = Dict{Dimension, Array}(

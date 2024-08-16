@@ -6,34 +6,10 @@ using Debugger
 using Statistics
 using Profile
 using GridTools
+using GridTools.ExampleMeshes.Unstructured
 
 const global VISUALIZATION_FLAG::Bool=false
 const global VERBOSE_FLAG::Bool=true
-
-# Mesh Definitions --------------------------------------------------------------------------------------------
-# Define dimensions for the mesh
-Cell_ = Dimension{:Cell_, HORIZONTAL}
-Edge_ = Dimension{:Edge_, HORIZONTAL}
-Vertex_ = Dimension{:Vertex_, HORIZONTAL}
-K_ = Dimension{:K_, VERTICAL}
-V2VDim_ = Dimension{:V2V_, LOCAL}
-V2EDim_ = Dimension{:V2E_, LOCAL}
-E2VDim_ = Dimension{:E2V_, LOCAL}
-
-# Instantiate dimension objects
-Cell = Cell_()
-K = K_()
-Edge = Edge_()
-Vertex = Vertex_()
-V2VDim = V2VDim_()
-V2EDim = V2EDim_()
-E2VDim = E2VDim_()
-
-# Define field offsets to describe the relationships between different dimensions
-V2V = FieldOffset("V2V", source = Vertex, target = (Vertex, V2VDim))
-E2V = FieldOffset("E2V", source = Vertex, target = (Edge, E2VDim))
-V2E = FieldOffset("V2E", source = Edge, target = (Vertex, V2EDim))
-Koff = FieldOffset("Koff", source = K, target = K)
 
 # Include additional necessary files for mesh, state container, metric calculations, and advection operations
 include("../src/atlas/atlas_mesh.jl")
@@ -50,7 +26,7 @@ mesh = AtlasMesh(grid, num_level = 30)
 # Simulation Parameters ---------------------------------------------------------------------------------------
 δt = 1800.0  # time step in s
 niter = 50
-ε = 1.0e-8
+ϵ = 1.0e-8
 
 # Calculate metric properties from the mesh
 metric = m_from_mesh(mesh)
