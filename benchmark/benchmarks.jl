@@ -1,13 +1,78 @@
 using BenchmarkTools
 using Statistics
 using GridTools
+using GridTools.ExampleMeshes.Unstructured
+using GridTools.ExampleMeshes.Cartesian
 
 # Data size
 const global STREAM_SIZE = 10_000_000
 
-# Mesh definitions
-const global Cell_ = Dimension{:Cell_, HORIZONTAL}
-const global Cell = Cell_()
+# Utils ------------------------------------------------------------------------------------------------------
+
+# Useful for the benchmark of the field remapping operation
+function create_large_connectivity(size::Int)
+    edge_to_cell_table = hcat([rand(1:size, 2) for _ in 1:size]...)
+    cell_to_edge_table = hcat([rand(1:size, 3) for _ in 1:size]...)
+
+    E2C = Connectivity(edge_to_cell_table, Cell, Edge, 2)
+    C2E = Connectivity(cell_to_edge_table, Edge, Cell, 3)
+
+    Dict(
+        "E2C" => E2C,
+        "C2E" => C2E,
+        "E2CDim" => E2C  # TODO: remove it
+    )
+end
+
+"""
+    compute_memory_bandwidth_single(results, a, out)::Float64
+
+Calculates the memory bandwidth for operations that involve a single input and output field based on benchmark results.
+
+This function measures how efficiently data is transferred to and from memory during the execution of a benchmarked operation.
+
+# Arguments
+- `results`: The benchmark results object containing timing and other performance data.
+- `a`: The input field used in the benchmark.
+- `out`: The output field produced by the benchmark.
+
+# Returns
+- `bandwidth`: The computed memory bandwidth in gigabytes per second (GB/s), which represents the rate at which data is read from and written to the system memory during the operation.
+
+# Calculation Details
+- `data_size`: Sum of the sizes of the input and output data in bytes.
+- `time_in_seconds`: The median execution time of the benchmark, converted from nanoseconds to seconds.
+- `bandwidth`: Calculated as the total data transferred divided by the time taken, expressed in GB/s.
+"""
+function compute_memory_bandwidth_single(results, a, out=a)::Float64
+    data_size = sizeof(a.data) + sizeof(out.data)  # Read from a and write to out
+    time_in_seconds = median(results.times) / 1e9  # Convert ns to s
+    bandwidth = data_size / time_in_seconds / 1e9  # GB/s
+    return bandwidth
+end
+
+"""
+    compute_memory_bandwidth_addition(results, a, b, out)
+
+Function to compute the memory bandwidth for the addition benchmarks.
+
+# Arguments
+- `results`: Benchmark results.
+- `a, b`: The input arrays/fields used in the benchmark.
+- `out`: The output array/field of the benchmark.
+
+# Returns
+- The computed memory bandwidth in GB/s.
+"""
+function compute_memory_bandwidth_addition(results, a, b, out)::Float64
+    @assert sizeof(a.data) == sizeof(b.data) == sizeof(out.data)
+    data_size = sizeof(a.data) + sizeof(b.data) + sizeof(out.data)  # Read a and b, write to out
+    time_in_seconds = median(results.times) / 1e9  # Convert ns to s
+    bandwidth = data_size / time_in_seconds / 1e9  # GB/s
+    return bandwidth
+end
+
+# Operations -------------------------------------------------------------------------------------------------
 
 """
     single_field_setup(FIELD_DATA_SIZE::Int64)::Tuple{Field, Field}
@@ -172,52 +237,23 @@ Field operator that applies the cosine function element-wise to the data of a fi
 end
 
 """
-    compute_memory_bandwidth_single(results, a, out)::Float64
+    fo_remapping(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
 
-Calculates the memory bandwidth for operations that involve a single input and output field based on benchmark results.
+Field operator that performs remapping from cell-based data to edge-based data.
 
-This function measures how efficiently data is transferred to and from memory during the execution of a benchmarked operation.
-
-# Arguments
-- `results`: The benchmark results object containing timing and other performance data.
-- `a`: The input field used in the benchmark.
-- `out`: The output field produced by the benchmark.
-
-# Returns
-- `bandwidth`: The computed memory bandwidth in gigabytes per second (GB/s), which represents the rate at which data is read from and written to the system memory during the operation.
-
-# Calculation Details
-- `data_size`: Sum of the sizes of the input and output data in bytes.
-- `time_in_seconds`: The median execution time of the benchmark, converted from nanoseconds to seconds.
-- `bandwidth`: Calculated as the total data transferred divided by the time taken, expressed in GB/s.
-"""
-function compute_memory_bandwidth_single(results, a, out=a)::Float64
-    data_size = sizeof(a.data) + sizeof(out.data)  # Read from a and write to out
-    time_in_seconds = median(results.times) / 1e9  # Convert ns to s
-    bandwidth = data_size / time_in_seconds / 1e9  # GB/s
-    return bandwidth
-end
-
-"""
-    compute_memory_bandwidth_addition(results, a, b, out)
-
-Function to compute the memory bandwidth for the addition benchmarks.
+This operator utilizes a connectivity table (`E2C`) to map the values from cells to edges, implying a transformation from the cell-centered field to an edge-centered field based on predefined relationships in the connectivity table.
 
 # Arguments
-- `results`: Benchmark results.
-- `a, b`: The input arrays/fields used in the benchmark.
-- `out`: The output array/field of the benchmark.
+- `a`: Input field containing Float64 data structured around cells.
 
 # Returns
-- The computed memory bandwidth in GB/s.
+- A new field where each element represents data remapped from cells to edges, structured as specified by the edge-to-cell connectivity.
 """
-function compute_memory_bandwidth_addition(results, a, b, out)::Float64
-    @assert sizeof(a.data) == sizeof(b.data) == sizeof(out.data)
-    data_size = sizeof(a.data) + sizeof(b.data) + sizeof(out.data)  # Read a and b, write to out
-    time_in_seconds = median(results.times) / 1e9  # Convert ns to s
-    bandwidth = data_size / time_in_seconds / 1e9  # GB/s
-    return bandwidth
+@field_operator function fo_remapping(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
+    return a(E2C[1])
 end
+
+# Benchmark --------------------------------------------------------------------------------------------------
 
 # Create the benchmark suite
 suite = BenchmarkGroup()
@@ -253,6 +289,12 @@ suite["trigonometry"]["cos"] = @benchmarkable $cos_without_fo($a)
 a, out = single_field_setup(STREAM_SIZE)
 suite["trigonometry"]["field_op_cos"] = @benchmarkable $fo_cos($a, backend="embedded", out=$out)
 
+# Benchmark the field remapping operation
+offset_provider = create_large_connectivity(STREAM_SIZE)
+a, out = single_field_setup(STREAM_SIZE)
+suite["remapping"]["field_operator"] = 
+    @benchmarkable $fo_remapping($a, offset_provider=$offset_provider, backend="embedded", out=$out)
+
 # Run the benchmark suite
 results = run(suite)
 
@@ -264,6 +306,7 @@ sin_results = results["trigonometry"]["sin"]
 fo_sin_results = results["trigonometry"]["field_op_sin"]
 cos_results = results["trigonometry"]["cos"]
 fo_cos_results = results["trigonometry"]["field_op_cos"]
+remapping_results = results["remapping"]["field_operator"]
 
 # Process and print the results
 array_bandwidth = compute_memory_bandwidth_addition(array_results, a, b, a) # Out is a temporary array with size equal to the size of a
@@ -275,11 +318,41 @@ fo_sin_bandwidth = compute_memory_bandwidth_single(fo_sin_results, a)
 cos_bandwidth = compute_memory_bandwidth_single(cos_results, a)
 fo_cos_bandwidth = compute_memory_bandwidth_single(fo_cos_results, a)
 
-# Print the results
-println("Array broadcast addition bandwidth:\t\t$array_bandwidth GB/s")
-println("Fields data broadcast addition bandwidth:\t$fields_bandwidth GB/s")
-println("Field Operator broadcast addition bandwidth:\t$fo_bandwidth GB/s")
-println("Sine operation bandwidth (no field operator):\t$sin_bandwidth GB/s")
-println("Field Operator sine bandwidth:\t$fo_sin_bandwidth GB/s")
-println("Cosine operation bandwidth (no field operator):\t$cos_bandwidth GB/s")
-println("Field Operator cosine bandwidth:\t$fo_cos_bandwidth GB/s")
+remapping_bandwidth = compute_memory_bandwidth_single(remapping_results, a)
+
+# Function to convert nanoseconds to milliseconds for clearer output
+ns_to_ms(time_ns) = time_ns / 1e6
+
+# Process and print the results along with the time taken for each
+println("Array broadcast addition:")
+println("\tBandwidth: $array_bandwidth GB/s")
+println("\tTime taken: $(ns_to_ms(median(array_results.times))) ms\n")
+
+println("Fields data broadcast addition:")
+println("\tBandwidth: $fields_bandwidth GB/s")
+println("\tTime taken: $(ns_to_ms(median(fields_results.times))) ms\n")
+
+println("Field Operator broadcast addition:")
+println("\tBandwidth: $fo_bandwidth GB/s")
+println("\tTime taken: $(ns_to_ms(median(fo_results.times))) ms\n")
+
+println("Sine operation (no field operator):")
+println("\tBandwidth: $sin_bandwidth GB/s")
+println("\tTime taken: $(ns_to_ms(median(sin_results.times))) ms\n")
+
+println("Field Operator sine operation:")
+println("\tBandwidth: $fo_sin_bandwidth GB/s")
+println("\tTime taken: $(ns_to_ms(median(fo_sin_results.times))) ms\n")
+
+println("Cosine operation (no field operator):")
+println("\tBandwidth: $cos_bandwidth GB/s")
+println("\tTime taken: $(ns_to_ms(median(cos_results.times))) ms\n")
+
+println("Field Operator cosine operation:")
+println("\tBandwidth: $fo_cos_bandwidth GB/s")
+println("\tTime taken: $(ns_to_ms(median(fo_cos_results.times))) ms\n")
+
+println("Field Operator Remapping:")
+println("\tBandwidth: $remapping_bandwidth GB/s")
+println("\tTime taken: $(ns_to_ms(median(remapping_results.times))) ms\n")
+
