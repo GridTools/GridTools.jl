@@ -8,6 +8,7 @@ using Profile
 using GridTools
 
 const global VISUALIZATION_FLAG::Bool=false
+const global VERBOSE_FLAG::Bool=true
 
 # Mesh Definitions --------------------------------------------------------------------------------------------
 # Define dimensions for the mesh
@@ -215,7 +216,9 @@ for i = 1:niter
     )
 
     # Print the current timestep
-    println("Timestep $i")
+    if VERBOSE_FLAG
+        println("Timestep $i")
+    end
 
     if VISUALIZATION_FLAG
         # Print the current state as ASCII art every 5 timesteps
@@ -232,9 +235,11 @@ for i = 1:niter
     update_periodic_layers(mesh, state.rho)
 end
 
-# Output the final statistics for the scalar field (rho) and velocity fields
-println(
-    "min max sum of final rho = $(minimum(state.rho.data)) , $(maximum(state.rho.data)) , $(sum(state.rho.data))"
-)
-println("Final Vel0 sum after $niter iterations: $(sum(state.vel[1].data))")
-println("Final Vel1 sum after $niter iterations: $(sum(state.vel[2].data))")
+if VERBOSE_FLAG
+    # Output the final statistics for the scalar field (rho) and velocity fields
+    println(
+        "min max sum of final rho = $(minimum(state.rho.data)) , $(maximum(state.rho.data)) , $(sum(state.rho.data))"
+    )
+    println("Final Vel0 sum after $niter iterations: $(sum(state.vel[1].data))")
+    println("Final Vel1 sum after $niter iterations: $(sum(state.vel[2].data))")
+end
