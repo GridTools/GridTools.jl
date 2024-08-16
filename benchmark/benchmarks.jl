@@ -253,6 +253,23 @@ This operator utilizes a connectivity table (`E2C`) to map the values from cells
     return a(E2C[1])
 end
 
+"""
+    fo_neighbor_sum(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
+
+Field operator that computes the sum of neighboring cell values for each edge. This function leverages the connectivity table (`E2C`), which defines the relationship between edges and cells, to sum the values of cells that are connected to each edge.
+
+The summation is performed across the dimension specified by `E2CDim`, ensuring that each edge aggregates values from its associated cells correctly.
+
+# Arguments
+- `a`: Input field containing Float64 data, where each cell contains a numerical value.
+
+# Returns
+- A new field where each edge holds the summed value of its neighboring cells, based on the edge-to-cell connectivity defined in `E2C`.
+"""
+@field_operator function fo_neighbor_sum(a::Field{Tuple{Cell_},Float64})::Field{Tuple{Edge_},Float64}
+    return neighbor_sum(a(E2C), axis=E2CDim)
+end
+
 # Benchmark --------------------------------------------------------------------------------------------------
 
 # Create the benchmark suite
@@ -295,6 +312,12 @@ a, out = single_field_setup(STREAM_SIZE)
 suite["remapping"]["field_operator"] = 
     @benchmarkable $fo_remapping($a, offset_provider=$offset_provider, backend="embedded", out=$out)
 
+# Benchmark the field neighbor sum operation
+offset_provider = create_large_connectivity(STREAM_SIZE)
+a, out = single_field_setup(STREAM_SIZE)
+suite["neighbor_sum"]["field_operator"] = 
+    @benchmarkable $fo_neighbor_sum($a, offset_provider=$offset_provider, backend="embedded", out=$out)
+
 # Run the benchmark suite
 results = run(suite)
 
@@ -307,6 +330,7 @@ fo_sin_results = results["trigonometry"]["field_op_sin"]
 cos_results = results["trigonometry"]["cos"]
 fo_cos_results = results["trigonometry"]["field_op_cos"]
 remapping_results = results["remapping"]["field_operator"]
+neighbor_sum_results = results["neighbor_sum"]["field_operator"]
 
 # Process and print the results
 array_bandwidth = compute_memory_bandwidth_addition(array_results, a, b, a) # Out is a temporary array with size equal to the size of a
@@ -317,8 +341,6 @@ sin_bandwidth = compute_memory_bandwidth_single(sin_results, a)
 fo_sin_bandwidth = compute_memory_bandwidth_single(fo_sin_results, a)
 cos_bandwidth = compute_memory_bandwidth_single(cos_results, a)
 fo_cos_bandwidth = compute_memory_bandwidth_single(fo_cos_results, a)
-
-remapping_bandwidth = compute_memory_bandwidth_single(remapping_results, a)
 
 # Function to convert nanoseconds to milliseconds for clearer output
 ns_to_ms(time_ns) = time_ns / 1e6
@@ -353,6 +375,7 @@ println("\tBandwidth: $fo_cos_bandwidth GB/s")
 println("\tTime taken: $(ns_to_ms(median(fo_cos_results.times))) ms\n")
 
 println("Field Operator Remapping:")
-println("\tBandwidth: $remapping_bandwidth GB/s")
 println("\tTime taken: $(ns_to_ms(median(remapping_results.times))) ms\n")
 
+println("Field Operator Neighbor Sum:")
+println("\tTime taken: $(ns_to_ms(median(neighbor_sum_results.times))) ms\n")
