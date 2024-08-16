@@ -4,7 +4,7 @@ spack:
   - py-pip
   - boost
   - cmake
-  - py-cupy cuda_arch=60 ^cuda+allow-unsupported-compilers ^nccl+cuda cuda_arch=60
+  - py-cupy cuda_arch=60 ^cuda+allow-unsupported-compilers ^nccl+cuda cuda_arch=60 ^cudnn@:8
   view: true
   concretizer:
     unify: true
