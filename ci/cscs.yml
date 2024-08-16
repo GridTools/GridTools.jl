@@ -45,7 +45,7 @@ build_base_stage0_image_job:
 
 build_base_stage1_image_job:
   stage: build_base_stage1_image
-  extends: .pmap-container-builder
+  extends: .gt-container-builder
   variables:
     DOCKERFILE: ci/utils/docker/base_spack_deps/Dockerfile
     DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE0", "PROJECT_NAME=$PROJECT_NAME", "SPACK_ENV_FILE=spack-${CONTAINER_RUNNER}.yaml"]'
