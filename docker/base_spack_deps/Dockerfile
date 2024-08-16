@@ -10,7 +10,7 @@ ARG SPACK_ENV_FILE=spack-clariden-gpu.yaml
 WORKDIR /opt/${PROJECT_NAME}_env/spack/bin
 
 COPY ./docker/base_spack_deps/${SPACK_ENV_FILE} ./spack_env_${PROJECT_NAME}.yaml
-RUN ./spack env create ${PROJECT_NAME}_env ${PROJECT_NAME}_env.yaml
+RUN ./spack env create ${PROJECT_NAME}_env spack_env_${PROJECT_NAME}_env.yaml
 # remove all compilers such that everything is built with the compiler we installed
 RUN ./spack compiler remove -a gcc
 RUN ./spack -e ${PROJECT_NAME}_env compiler find $(./spack location --install-dir gcc@11)
