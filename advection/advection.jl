@@ -6,11 +6,10 @@
     level_indices::Field{Tuple{K_}, Int64},
     num_level::Int64
 )::Field{Tuple{Vertex_, K_}, Float64}
-
     return where(
-        level_indices .== num_level - 1,
+        level_indices .== 0,
         lower,
-        where(slice(level_indices .== 0, 1:29), upper, interior)
+        where(slice(level_indices .== 29, 2:30), upper, interior)
     )
 end
 

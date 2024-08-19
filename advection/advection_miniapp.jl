@@ -9,7 +9,7 @@ using GridTools
 using GridTools.ExampleMeshes.Unstructured
 
 const global VISUALIZATION_FLAG::Bool=false
-const global VERBOSE_FLAG::Bool=true
+const global VERBOSE_FLAG::Bool=false
 
 # Include additional necessary files for mesh, state container, metric calculations, and advection operations
 include("../src/atlas/atlas_mesh.jl")
@@ -20,7 +20,7 @@ include("visualization_utils.jl")
 
 # Grid and Mesh Initialization --------------------------------------------------------------------------------
 # Create a structured grid and mesh for the simulation
-grid = atlas.StructuredGrid("O50")
+grid = atlas.StructuredGrid("O10")
 mesh = AtlasMesh(grid, num_level = 30)
 
 # Simulation Parameters ---------------------------------------------------------------------------------------

@@ -66,7 +66,7 @@ function get_size_ifelse(mask::FieldShape, branch::FieldShape)
     out_size = [branch.axes...]
     ind_mask = findall(x -> x in branch.dims, mask.dims)
     ind_out = findall(x -> x in mask.dims, branch.dims)
-
+    # TODO: this is not correct if the mask has an origin
     out_size[ind_out] .= mask.axes[ind_mask]
 
     return FieldShape(branch.dims, Tuple(out_size), branch.broadcast_dims)

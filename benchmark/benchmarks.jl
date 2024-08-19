@@ -5,14 +5,14 @@ using GridTools.ExampleMeshes.Unstructured
 using GridTools.ExampleMeshes.Cartesian
 
 # Data size
-const global STREAM_SIZE = 10_000_000
+const global STREAM_SIZE = 100
 
 # Utils ------------------------------------------------------------------------------------------------------
 
 # Useful for the benchmark of the field remapping operation
 function create_large_connectivity(size::Int)
-    edge_to_cell_table = hcat([rand(1:size, 2) for _ in 1:size]...)
-    cell_to_edge_table = hcat([rand(1:size, 3) for _ in 1:size]...)
+    edge_to_cell_table = vcat([rand(1:size, (1, 2)) for _ in 1:size]...)
+    cell_to_edge_table = vcat([rand(1:size, (1, 3)) for _ in 1:size]...)
 
     E2C = Connectivity(edge_to_cell_table, Cell, Edge, 2)
     C2E = Connectivity(cell_to_edge_table, Edge, Cell, 3)
@@ -64,12 +64,12 @@ Function to compute the memory bandwidth for the addition benchmarks.
 # Returns
 - The computed memory bandwidth in GB/s.
 """
-function compute_memory_bandwidth_addition(results, a, b, out)::Float64
+function compute_memory_bandwidth_addition(results, a, b, out)::Tuple{Float64, Int64}
     @assert sizeof(a.data) == sizeof(b.data) == sizeof(out.data)
     data_size = sizeof(a.data) + sizeof(b.data) + sizeof(out.data)  # Read a and b, write to out
     time_in_seconds = median(results.times) / 1e9  # Convert ns to s
     bandwidth = data_size / time_in_seconds / 1e9  # GB/s
-    return bandwidth
+    return bandwidth, data_size
 end
 
 # Operations -------------------------------------------------------------------------------------------------
@@ -280,11 +280,11 @@ suite["addition"] = BenchmarkGroup()
 
 # Julia broadcast addition benchmark
 a, b, data_size = array_broadcast_addition_setup(STREAM_SIZE)
-suite["addition"]["array_broadcast_addition"] = @benchmarkable $broadcast_addition_array($a, $b)
+suite["addition"]["array_broadcast_addition"] = @benchmarkable broadcast_addition_array(a, b) setup=((a, b, data_size) = $array_broadcast_addition_setup($STREAM_SIZE); ) #a=$a; b=$b)
 
 # Field broadcast addition benchmark
 a, b, out = fields_broadcast_addition_setup(STREAM_SIZE)
-suite["addition"]["fields_broadcast_addition"] = @benchmarkable $broadcast_addition_fields($a, $b)
+suite["addition"]["fields_broadcast_addition"] = @benchmarkable broadcast_addition_fields($a, $b)
 
 # Field Operator broadcast addition benchmark
 a, b, out = fields_broadcast_addition_setup(STREAM_SIZE)
@@ -292,7 +292,7 @@ suite["addition"]["field_op_broadcast_addition"] = @benchmarkable $fo_addition($
 
 # Sine without field operator benchmark
 a, out = single_field_setup(STREAM_SIZE)
-suite["trigonometry"]["sin"] = @benchmarkable $sin_without_fo($a)
+suite["trigonometry"]["sin"] = @benchmarkable sin_without_fo($a)
 
 # Field operator sine benchmark
 a, out = single_field_setup(STREAM_SIZE)
@@ -300,7 +300,7 @@ suite["trigonometry"]["field_op_sin"] = @benchmarkable $fo_sin($a, backend="embe
 
 # Cosine without field operator benchmark
 a, out = single_field_setup(STREAM_SIZE)
-suite["trigonometry"]["cos"] = @benchmarkable $cos_without_fo($a)
+suite["trigonometry"]["cos"] = @benchmarkable cos_without_fo($a)
 
 # Field operator cosine benchmark
 a, out = single_field_setup(STREAM_SIZE)
@@ -319,6 +319,7 @@ suite["neighbor_sum"]["field_operator"] =
     @benchmarkable $fo_neighbor_sum($a, offset_provider=$offset_provider, backend="embedded", out=$out)
 
 # Run the benchmark suite
+println("Running the benchmark suite...")
 results = run(suite)
 
 # Process the results
@@ -332,10 +333,10 @@ fo_cos_results = results["trigonometry"]["field_op_cos"]
 remapping_results = results["remapping"]["field_operator"]
 neighbor_sum_results = results["neighbor_sum"]["field_operator"]
 
-# Process and print the results
-array_bandwidth = compute_memory_bandwidth_addition(array_results, a, b, a) # Out is a temporary array with size equal to the size of a
-fields_bandwidth = compute_memory_bandwidth_addition(fields_results, a, b, a)
-fo_bandwidth = compute_memory_bandwidth_addition(fo_results, a, b, out)
+# Compute memory bandwidth
+array_bandwidth, data_size_arr = compute_memory_bandwidth_addition(array_results, a, b, a) # Out is a temporary array with size equal to the size of a
+fields_bandwidth, data_size_fields = compute_memory_bandwidth_addition(fields_results, a, b, a)
+fo_bandwidth, data_size_fo = compute_memory_bandwidth_addition(fo_results, a, b, out)
 
 sin_bandwidth = compute_memory_bandwidth_single(sin_results, a)
 fo_sin_bandwidth = compute_memory_bandwidth_single(fo_sin_results, a)
@@ -347,14 +348,17 @@ ns_to_ms(time_ns) = time_ns / 1e6
 
 # Process and print the results along with the time taken for each
 println("Array broadcast addition:")
+println("\tData size: $data_size_arr")
 println("\tBandwidth: $array_bandwidth GB/s")
 println("\tTime taken: $(ns_to_ms(median(array_results.times))) ms\n")
 
 println("Fields data broadcast addition:")
+println("\tData size: $data_size_fields")
 println("\tBandwidth: $fields_bandwidth GB/s")
 println("\tTime taken: $(ns_to_ms(median(fields_results.times))) ms\n")
 
 println("Field Operator broadcast addition:")
+println("\tData size: $data_size_fo")
 println("\tBandwidth: $fo_bandwidth GB/s")
 println("\tTime taken: $(ns_to_ms(median(fo_results.times))) ms\n")
 
@@ -384,9 +388,11 @@ println("\tTime taken: $(ns_to_ms(median(neighbor_sum_results.times))) ms\n")
 
 include("../advection/advection_miniapp.jl")
 
-println("Starting julia embedded benchmark")
+avection_suite = BenchmarkGroup()
 
-suite["advection"]["mpdata_program_julia_embedded"] = @benchmark mpdata_program(
+println("Starting Advection Benchmark (julia embedded)")
+
+avection_suite["advection"]["mpdata_program_julia_embedded"] = @benchmark $mpdata_program(
         state.rho,
         δt,
         ϵ,
@@ -403,12 +409,12 @@ suite["advection"]["mpdata_program_julia_embedded"] = @benchmark mpdata_program(
         offset_provider = mesh.offset_provider
     )
 
-println("Finished Julia embedded benchmark")
+println("Finished Advection Benchmark (julia embedded)")
 
 # TODO: disabled because the backend is not currently supporting it (the backend is too slow)
-# println("Starting julia python benchmark")
+# println("Starting Advection Benchmark (julia-python)")
 
-# suite["advection"]["mpdata_program_julia_pyback"] = @benchmark mpdata_program(
+# advection_suite["advection"]["mpdata_program_julia_pyback"] = @benchmark mpdata_program(
 #         state.rho,
 #         δt,
 #         ϵ,
@@ -426,13 +432,17 @@ println("Finished Julia embedded benchmark")
 #         backend = "py"
 #     )
 
-# println("Finished Julia python backend benchmark")
+# println("Finished Advection Benchmark (julia-python)")
 
-mpdata_emb_results = results["advection"]["mpdata_program_julia_embedded"]
+# Run the benchmark suite
+println("Running the advection suite...")
+# advection_results = run(avection_suite)
+
+# mpdata_emb_results = advection_results["advection"]["mpdata_program_julia_embedded"]
 # mpdata_pyback_results = results["advection"]["mpdata_program_julia_pyback"]
 
-println("mpdata_program julia embedded version:")
-println("\tTime taken: $(ns_to_ms(median(mpdata_emb_results.times))) ms\n")
+# println("mpdata_program julia embedded version:")
+# println("\tTime taken: $(ns_to_ms(median(mpdata_emb_results.times))) ms\n")
 
 # println("mpdata_program julia with python backend:")
 # println("\tTime taken: $(ns_to_ms(median(mpdata_pyback_results.times))) ms\n")
