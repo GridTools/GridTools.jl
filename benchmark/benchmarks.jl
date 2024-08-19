@@ -5,7 +5,7 @@ using GridTools.ExampleMeshes.Unstructured
 using GridTools.ExampleMeshes.Cartesian
 
 # Data size
-const global STREAM_SIZE = 100
+const global STREAM_SIZE = 10_000_000
 
 # Utils ------------------------------------------------------------------------------------------------------
 
