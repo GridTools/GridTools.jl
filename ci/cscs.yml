@@ -1,11 +1,13 @@
 stages:
   - build_base_stage0_image
   - build_base_stage1_image
+  - build_image
   - run_tests
 
 variables:
   CUDA_DRIVER_VERSION: "470.57.02"
   PROJECT_NAME: gridtools_jl
+  PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/pasc_kilos/${CONTAINER_RUNNER}/${PROJECT_NAME}_image:$CI_COMMIT_SHORT_SHA
 
 include:
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
@@ -59,3 +61,15 @@ build_image:
   variables:
     DOCKERFILE: docker/image/Dockerfile
     DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE1", "PROJECT_NAME=$PROJECT_NAME"]'
+
+run_benchmarks:
+  stage: ci_jobs
+  image: $PERSIST_IMAGE_NAME
+  extends: .container-runner-daint
+  script:
+    - . /opt/gridtools_jl_env/setup-env.sh
+    - julia --version
+  variables:
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+    SLURM_TIMELIMIT: "00:30:00"
