@@ -1,3 +1,6 @@
+
+using Base.Threads: @threads
+
 Base.BroadcastStyle(::Type{<:Field}) = Broadcast.ArrayStyle{Field}()
 
 # TODO(tehrengruber): Implement a range with an attached dimension instead of this single object
@@ -257,7 +260,7 @@ end
 
     # Performance may vary depending on whether `@inbounds` is placed outside the
     # for loop or not. (cf. https://github.com/JuliaLang/julia/issues/38086)
-    @inbounds @simd for I in eachindex(dest)
+    @inbounds @threads for I in eachindex(dest)
         dest[I] = bc′[I]
     end
     return dest
