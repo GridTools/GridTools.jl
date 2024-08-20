@@ -2,7 +2,7 @@ stages:
   - build_base_stage0_image
   - build_base_stage1_image
   - build_image
-  - run_tests
+  - ci_jobs
 
 variables:
   CUDA_DRIVER_VERSION: "470.57.02"
