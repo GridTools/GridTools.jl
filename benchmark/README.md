@@ -76,7 +76,7 @@ git tag -a <tag-name> -m "Tag message"
 For example, to tag the current commit with `v1.0.0`, you would run:
 
 ```bash
-git tag -a v1.0.0 -m "Release version 1.0.0"
+git tag -a v1.0.0 -m "Improvement using @threads instead of @simd in broadcasting"
 ```
 
 To push the tag to the remote repository, use:
@@ -116,8 +116,8 @@ Here’s how you can use tags instead of commit hashes:
    Suppose you want to tag the two commits:
 
    ```bash
-   git tag -a v1.0.0 8b8a68f5b54f8fbb863f73c08f5c7fd0d3812ccd -m "Tagging v1.0.0"
-   git tag -a v1.1.0 6fb48706f988613860c6c98beef32c32e900737b -m "Tagging v1.1.0"
+   git tag -a v1.0.0 8b8a68f5b54f8fbb863f73c08f5c7fd0d3812ccd -m "Tag message for v1.0.0"
+   git tag -a v1.1.0 6fb48706f988613860c6c98beef32c32e900737b -m "Tag message for v1.1.0"
    ```
 
 2. **Use Tags in `benchpkg`**:
