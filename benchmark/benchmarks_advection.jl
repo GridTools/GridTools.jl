@@ -8,8 +8,8 @@ include("../advection/advection_miniapp.jl")
 
 # Advection Benchmarks 
 
-advection_suite = BenchmarkGroup()
-advection_suite["advection"]["upwind_julia_embedded"] = @benchmarkable upwind_scheme(
+SUITE = BenchmarkGroup()
+SUITE["advection"]["upwind_julia_embedded"] = @benchmarkable upwind_scheme(
         state.rho,
         δt,
         mesh.vol,
@@ -26,7 +26,7 @@ advection_suite["advection"]["upwind_julia_embedded"] = @benchmarkable upwind_sc
         # embedded backend
     )
 
-advection_suite["advection"]["upwind_python_backend"] = @benchmarkable upwind_scheme(
+SUITE["advection"]["upwind_python_backend"] = @benchmarkable upwind_scheme(
         state.rho,
         δt,
         mesh.vol,
@@ -43,7 +43,7 @@ advection_suite["advection"]["upwind_python_backend"] = @benchmarkable upwind_sc
         backend = "py"
     )
 
-advection_suite["advection"]["mpdata_program_julia_embedded"] = @benchmarkable mpdata_program(
+SUITE["advection"]["mpdata_program_julia_embedded"] = @benchmarkable mpdata_program(
         state.rho,
         δt,
         ϵ,
@@ -61,7 +61,7 @@ advection_suite["advection"]["mpdata_program_julia_embedded"] = @benchmarkable m
     )
 
 # TODO: disabled because the backend is not currently supporting it (the backend is too slow)
-# advection_suite["advection"]["mpdata_program_python_backend"] = @benchmarkable mpdata_program(
+# SUITE["advection"]["mpdata_program_python_backend"] = @benchmarkable mpdata_program(
 #         state.rho,
 #         δt,
 #         ϵ,
@@ -81,7 +81,7 @@ advection_suite["advection"]["mpdata_program_julia_embedded"] = @benchmarkable m
 
 # Run the benchmark suite
 println("Running the advection suite...")
-advection_results = run(advection_suite)
+advection_results = run(SUITE)
 
 upwind_embedded_results = advection_results["advection"]["upwind_julia_embedded"]
 upwind_python_backend_results = advection_results["advection"]["upwind_python_backend"]

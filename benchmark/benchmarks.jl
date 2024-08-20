@@ -272,55 +272,55 @@ end
 
 # Benchmarks -------------------------------------------------------------------------------------------------
 
-# Create the benchmark suite
-suite = BenchmarkGroup()
+# Create the benchmark SUITE
+SUITE = BenchmarkGroup()
 
 # Define the main groups
-suite["addition"] = BenchmarkGroup()
+SUITE["addition"] = BenchmarkGroup()
 
 # Julia broadcast addition benchmark
 a, b, data_size = array_broadcast_addition_setup(STREAM_SIZE)
-suite["addition"]["array_broadcast_addition"] = @benchmarkable broadcast_addition_array(a, b) setup=((a, b, data_size) = $array_broadcast_addition_setup($STREAM_SIZE); ) #a=$a; b=$b)
+SUITE["addition"]["array_broadcast_addition"] = @benchmarkable broadcast_addition_array(a, b) setup=((a, b, data_size) = $array_broadcast_addition_setup($STREAM_SIZE); ) #a=$a; b=$b)
 
 # Field broadcast addition benchmark
 a, b, out = fields_broadcast_addition_setup(STREAM_SIZE)
-suite["addition"]["fields_broadcast_addition"] = @benchmarkable broadcast_addition_fields($a, $b)
+SUITE["addition"]["fields_broadcast_addition"] = @benchmarkable broadcast_addition_fields($a, $b)
 
 # Field Operator broadcast addition benchmark
 a, b, out = fields_broadcast_addition_setup(STREAM_SIZE)
-suite["addition"]["field_op_broadcast_addition"] = @benchmarkable $fo_addition($a, $b, backend="embedded", out=$out)
+SUITE["addition"]["field_op_broadcast_addition"] = @benchmarkable $fo_addition($a, $b, backend="embedded", out=$out)
 
 # Sine without field operator benchmark
 a, out = single_field_setup(STREAM_SIZE)
-suite["trigonometry"]["sin"] = @benchmarkable sin_without_fo($a)
+SUITE["trigonometry"]["sin"] = @benchmarkable sin_without_fo($a)
 
 # Field operator sine benchmark
 a, out = single_field_setup(STREAM_SIZE)
-suite["trigonometry"]["field_op_sin"] = @benchmarkable $fo_sin($a, backend="embedded", out=$out)
+SUITE["trigonometry"]["field_op_sin"] = @benchmarkable $fo_sin($a, backend="embedded", out=$out)
 
 # Cosine without field operator benchmark
 a, out = single_field_setup(STREAM_SIZE)
-suite["trigonometry"]["cos"] = @benchmarkable cos_without_fo($a)
+SUITE["trigonometry"]["cos"] = @benchmarkable cos_without_fo($a)
 
 # Field operator cosine benchmark
 a, out = single_field_setup(STREAM_SIZE)
-suite["trigonometry"]["field_op_cos"] = @benchmarkable $fo_cos($a, backend="embedded", out=$out)
+SUITE["trigonometry"]["field_op_cos"] = @benchmarkable $fo_cos($a, backend="embedded", out=$out)
 
 # Benchmark the field remapping operation
 offset_provider = create_large_connectivity(STREAM_SIZE)
 a, out = single_field_setup(STREAM_SIZE)
-suite["remapping"]["field_operator"] = 
+SUITE["remapping"]["field_operator"] = 
     @benchmarkable $fo_remapping($a, offset_provider=$offset_provider, backend="embedded", out=$out)
 
 # Benchmark the field neighbor sum operation
 offset_provider = create_large_connectivity(STREAM_SIZE)
 a, out = single_field_setup(STREAM_SIZE)
-suite["neighbor_sum"]["field_operator"] = 
+SUITE["neighbor_sum"]["field_operator"] = 
     @benchmarkable $fo_neighbor_sum($a, offset_provider=$offset_provider, backend="embedded", out=$out)
 
-# Run the benchmark suite
-println("Running the benchmark suite...")
-results = run(suite)
+# Run the benchmark SUITE
+println("Running the benchmark SUITE...")
+results = run(SUITE)
 
 # Process the results
 array_results = results["addition"]["array_broadcast_addition"]
