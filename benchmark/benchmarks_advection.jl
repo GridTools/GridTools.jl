@@ -2,7 +2,7 @@ using BenchmarkTools
 using Statistics
 using GridTools
 
-include("../advection/advection_miniapp.jl")
+include("../advection/advection_setup.jl")
 
 # Advection Benchmarks 
 

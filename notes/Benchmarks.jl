@@ -59,7 +59,7 @@ using Profile
 
 # Benchmark for Julia and Python implementations of advection ##############################################################################################################
 
-include("../advection/advection_miniapp.jl")
+include("../advection/advection_setup.jl")
 
 println("Starting julia embedded benchmark")
 
@@ -81,7 +81,7 @@ bench_julia_embedded = @benchmark upwind_scheme(
 
 println("Finished Julia embedded benchmark")
 
-include("../advection/advection_miniapp.jl")
+include("../advection/advection_setup.jl")
 
 println("Starting julia python benchmark")
 
