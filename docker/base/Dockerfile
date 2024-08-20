@@ -23,6 +23,16 @@ RUN git clone --depth 1 -c feature.manyFiles=true https://github.com/spack/spack
 #RUN git checkout --track origin_tehrengruber/fix_libcuda_not_found
 
 WORKDIR ./spack/bin
+
+# avoid issues with proxy in CSCS CI
+RUN ./spack config add config:url_fetch_method:curl
+RUN cat <<EOF > /root/.curlrc
+retry = 10
+retry-all-errors
+retry-connrefused
+retry-max-time = 30
+EOF
+
 RUN ./spack install gcc@11
 
 # cleanup
