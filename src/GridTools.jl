@@ -706,7 +706,7 @@ macro module_vars()
                 name => Core.eval(Base, name) for
                 name in [:Int64, :Int32, :Float32, :Float64]
             )
-            all_names = names(@__MODULE__)
+            all_names = names(@__MODULE__, all=true)
             used_modules = ccall(:jl_module_usings, Any, (Any,), @__MODULE__)
             for m in used_modules
                 append!(all_names, names(m))
