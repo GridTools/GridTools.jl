@@ -1,7 +1,7 @@
-ARG BASE_IMAGE=pmap_base_image
+ARG BASE_IMAGE=gridtools_jl_base_image
 FROM $BASE_IMAGE as builder
 ARG PROJECT_NAME=gridtools_jl
-ARG SPACK_ENV_FILE=spack-clariden-gpu.yaml
+ARG SPACK_ENV_FILE=spack-daint-p100.yaml
 
 # TODO(tehrengruber): Copy spack environment to clean image. Then we don't need to run `spack gc`
 #  and `spack clean` anymore. See https://spack.readthedocs.io/en/latest/containers.html for

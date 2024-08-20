@@ -4,7 +4,6 @@ stages:
   - run_tests
 
 variables:
-  GPU_ENABLED: "true"
   CUDA_DRIVER_VERSION: "470.57.02"
   PROJECT_NAME: gridtools_jl
 
@@ -54,9 +53,9 @@ build_base_stage1_image_job:
     WATCH_FILECHANGES: 'docker/base/Dockerfile docker/base_spack_deps/Dockerfile docker/base_spack_deps/spack-daint-p100.yaml'  # TODO: inherit from stage0
     ENV_VAR_NAME: BASE_IMAGE_STAGE1
 
-#build_image:
-#  stage: build_image
-#  extends: .container-builder
-#  variables:
-#    DOCKERFILE: docker/base/Dockerfile
-#    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE2"]'
+build_image:
+  stage: build_image
+  extends: .container-builder
+  variables:
+    DOCKERFILE: docker/image/Dockerfile
+    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE1", "PROJECT_NAME=$PROJECT_NAME"]'
