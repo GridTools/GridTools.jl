@@ -1,8 +1,6 @@
 using BenchmarkTools
 using Statistics
 using GridTools
-using GridTools.ExampleMeshes.Unstructured
-using GridTools.ExampleMeshes.Cartesian
 
 include("../advection/advection_miniapp.jl")
 

@@ -7,16 +7,16 @@ using Statistics
 using Profile
 using GridTools
 using GridTools.ExampleMeshes.Unstructured
-
-const global VISUALIZATION_FLAG::Bool=false
-const global VERBOSE_FLAG::Bool=false
+using GridTools.AtlasMeshes
 
 # Include additional necessary files for mesh, state container, metric calculations, and advection operations
-include("../src/atlas/atlas_mesh.jl")
 include("state_container.jl")
 include("metric.jl")
 include("advection.jl")
 include("visualization_utils.jl")
+
+const global VISUALIZATION_FLAG::Bool=false
+const global VERBOSE_FLAG::Bool=true
 
 # Grid and Mesh Initialization --------------------------------------------------------------------------------
 # Create a structured grid and mesh for the simulation

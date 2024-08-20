@@ -758,5 +758,6 @@ end
 generate_unique_name(name::Symbol, value::Integer = 0) = Symbol("$(name)ᐞ$(value)")
 
 include("ExampleMeshes.jl")
+include("atlas/AtlasMeshes.jl")
 
 end
