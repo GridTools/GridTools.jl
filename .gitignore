@@ -30,3 +30,5 @@ env_setup.sh
 
 # Ignore benchmark (benchpkg) results
 results_GridTools@*
+plot_*.png
+plot_*.pdf
