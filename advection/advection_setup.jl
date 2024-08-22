@@ -14,7 +14,7 @@ include("advection.jl")
 
 # Grid and Mesh Initialization --------------------------------------------------------------------------------
 # Create a structured grid and mesh for the simulation
-grid = atlas.StructuredGrid("O10")
+grid = atlas.StructuredGrid("O90")
 mesh = AtlasMesh(grid, num_level = 30)
 
 # Simulation Parameters ---------------------------------------------------------------------------------------
