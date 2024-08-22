@@ -66,11 +66,10 @@ if [ "$advection" == true ]; then
     benchmark_script="benchmark/benchmarks_advection.jl"
     command="benchpkg --rev=before_debug,after_debug \
              -s $benchmark_script \
-             --bench-on=before_debug \
              --exeflags=\"--threads=$threads\""
 else
     command="benchpkg --rev=before_debug,after_debug \
-             --bench-on=before_debug \
+             --bench-on=after_debug \
              --exeflags=\"--threads=$threads\""
 fi
 
