@@ -10,6 +10,7 @@ using Base: @propagate_inbounds
 using MacroTools
 using OffsetArrays: IdOffsetRange
 using Debugger
+using Polyester: @batch
 
 import Base.Broadcast: Extruded, Style, BroadcastStyle, ArrayStyle, Broadcasted
 
@@ -441,7 +442,7 @@ function remap_ts(
     #    end
     #end, CartesianIndices(map(len -> Base.OneTo(len), out_field_size)))
     out_field = zeros(eltype(field.data), out_field_size)
-    for position in eachindex(IndexCartesian(), out_field)
+    @batch for position in eachindex(IndexCartesian(), out_field)
         neighbor_exists, new_position =
             remap_position(Tuple(position), out_field_dims, offset, nb_ind, conn)
         if neighbor_exists
