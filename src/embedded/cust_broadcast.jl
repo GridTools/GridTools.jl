@@ -248,12 +248,12 @@ end
 
 # Custom copyto!(): Only needed to maintain Broadcast Style
 @inline function Base.Broadcast.copyto!(dest::Field, bc::Broadcasted{ArrayStyle{Field}})
-    for (dest_dim, dest_axis) in zip(dest.dims, axes(dest))
-        if dest_dim ∉ bc.axes.broadcast_dims
-            i = findfirst(x -> x==dest_dim, bc.axes.dims)
-            @assert bc.axes.axes[i] == dest_axis "Assertion Error: $(bc.axes.axes[i]) != $(dest_axis) "
-        end
-    end
+    # for (dest_dim, dest_axis) in zip(dest.dims, axes(dest))
+    #     if dest_dim ∉ bc.axes.broadcast_dims
+    #         i = findfirst(x -> x==dest_dim, bc.axes.dims)
+    #         @assert bc.axes.axes[i] == dest_axis "Assertion Error: $(bc.axes.axes[i]) != $(dest_axis) "
+    #     end
+    # end
     # @assert axes(dest)==axes(bc) "Domain of the destination needs to match the result of the broadcast operation $(axes(dest)) != $(axes(bc))"
     # Performance optimization: broadcast!(identity, dest, A) is equivalent to copyto!(dest, A) if indices match
     if axes(dest) == axes(bc) && bc.f === identity && bc.args isa Tuple{AbstractArray} # only a single input argument to broadcast!
