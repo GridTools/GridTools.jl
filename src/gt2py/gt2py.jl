@@ -17,6 +17,7 @@ const np = PyNULL()
 
 const func_to_foast = PyNULL()
 const foast = PyNULL()
+const past = PyNULL()
 const type_info = PyNULL()
 const ts = PyNULL()
 const type_translation = PyNULL()
@@ -49,6 +50,7 @@ function __init__()
 
     copy!(func_to_foast, pyimport("gt4py.next.ffront.func_to_foast"))
     copy!(foast, pyimport("gt4py.next.ffront.field_operator_ast"))
+    copy!(past, pyimport("gt4py.next.ffront.program_ast"))
     copy!(type_info, pyimport("gt4py.next.type_system.type_info"))
     copy!(ts, pyimport("gt4py.next.type_system.type_specifications"))
     copy!(type_translation, pyimport("gt4py.next.type_system.type_translation"))
@@ -167,7 +169,6 @@ builtin_op = Dict(
 CLOSURE_VARS::Dict = Dict()
 
 # Methods -----------------------------------------------------------------------------------
-
 function py_field_operator(
     fo,
     backend = Nothing,
