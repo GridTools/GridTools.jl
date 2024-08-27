@@ -622,7 +622,33 @@ function backend_execution(
     if haskey(FIELD_OPERATORS, fo.name)
         f = FIELD_OPERATORS[fo.name]
     else
-        f = py_field_operator(fo)
+        py_f = py_field_operator(fo)
+        function wrapped_fo(args...; out, offset_provider, kwargs...)
+            arg_types = map(type_translation.from_value, args)
+            kwarg_types = Dict(map((k, v) -> k => type_translation.from_value(v), keys(kwargs), values(kwargs)))
+            prg = py_f.as_program(arg_types, kwarg_types)
+            past_node = prg.past_node
+            closure_dims = Dict()
+            for (k, v) in py_f.closure_vars
+                if py"isinstance"(v, gtx.Dimension)
+                    closure_dims[v] = k
+                end
+            end
+            @assert length(past_node.body) == 1
+            @assert py"isinstance"(past_node.body[1], past.Call)
+            call = past_node.body[1]
+
+            dict_keys, dict_values = [], []
+            for (out_dim, out_range) in zip(out.domain.dims, out.domain.ranges)
+                push!(dict_keys, past.Name(id=closure_dims[out_dim], location=call.location))
+                # TODO: this completely breaks caching, the size should be passed as an argument instead
+                push!(dict_values, past.TupleExpr(elts=[past.Constant(value=out_range.start, location=call.location), past.Constant(value=out_range.stop, location=call.location)], location=call.location))
+            end
+
+            call.kwargs["domain"] = past.Dict(keys_=dict_keys, values_=dict_values, location=call.location)
+            return prg(args...; out=out, offset_provider=offset_provider, kwargs...)
+        end
+        f = wrapped_fo
         FIELD_OPERATORS[fo.name] = f
     end
     p_args, p_kwargs, p_out, p_offset_provider =
