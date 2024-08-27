@@ -17,7 +17,8 @@ RUN ./spack -e ${PROJECT_NAME}_env compiler find $(./spack location --install-di
 # using --fresh ensures the concretization does not care about the build cache (untested and not
 #  used right now as we don't use a build cache yet)
 RUN ./spack -e ${PROJECT_NAME}_env concretize --fresh
-RUN ./spack -e ${PROJECT_NAME}_env install
+COPY ./docker/base_spack_deps/run_until_succeed.sh ./run_until_succeed.sh
+RUN ./run_until_succeed.sh ./spack -e ${PROJECT_NAME}_env install
 
 # cleanup
 RUN ./spack -e ${PROJECT_NAME}_env clean --all
