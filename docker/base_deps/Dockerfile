@@ -9,6 +9,7 @@ COPY ./docker/base_deps/setup-env.sh ./setup-env.sh
 RUN sed -i "s/%PROJECT_NAME%/$PROJECT_NAME/g" setup-env.sh
 
 WORKDIR /opt/
+COPY ./docker/base_deps/install_gt4py.sh ./install_gt4py.sh
 RUN . /opt/${PROJECT_NAME}_env/setup-env.sh; ./install_gt4py.sh
 RUN . /opt/${PROJECT_NAME}_env/setup-env.sh; pip cache purge
 
