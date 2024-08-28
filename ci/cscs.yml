@@ -1,6 +1,7 @@
 stages:
   - build_base_stage0_image
   - build_base_stage1_image
+  - build_base_stage2_image
   - build_image
   - ci_jobs
 
@@ -51,16 +52,26 @@ build_base_stage1_image_job:
   variables:
     DOCKERFILE: docker/base_spack_deps/Dockerfile
     DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE0", "PROJECT_NAME=$PROJECT_NAME", "SPACK_ENV_FILE=spack-${CONTAINER_RUNNER}.yaml"]'
-    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/pasc_kilos/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_stage1_image
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/gridtools/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_stage1_image
     WATCH_FILECHANGES: 'docker/base/Dockerfile docker/base_spack_deps/Dockerfile docker/base_spack_deps/spack-daint-p100.yaml'  # TODO: inherit from stage0
     ENV_VAR_NAME: BASE_IMAGE_STAGE1
+
+build_base_stage2_image_job:
+  stage: build_base_stage2_image
+  extends: .gt-container-builder
+  variables:
+    DOCKERFILE: docker/base_deps/Dockerfile
+    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE1", "PROJECT_NAME=$PROJECT_NAME"]'
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/gridtools/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_stage2_image
+    WATCH_FILECHANGES: 'docker/base/Dockerfile docker/base_spack_deps/Dockerfile docker/base_spack_deps/spack-daint-p100.yaml docker/base_deps/Dockerfile'  # TODO: inherit from stage1
+    ENV_VAR_NAME: BASE_IMAGE_STAGE2
 
 build_image:
   stage: build_image
   extends: .container-builder
   variables:
     DOCKERFILE: docker/image/Dockerfile
-    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE1", "PROJECT_NAME=$PROJECT_NAME"]'
+    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE2", "PROJECT_NAME=$PROJECT_NAME"]'
 
 run_benchmarks:
   stage: ci_jobs
