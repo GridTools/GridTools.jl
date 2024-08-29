@@ -3,10 +3,10 @@ ARG BASE_IMAGE=gridtools_jl_spack_deps_image
 FROM $BASE_IMAGE as builder
 ARG PROJECT_NAME
 
-WORKDIR /opt/${PROJECT_NAME}_env
+COPY ./ /opt/GridTools
 
-COPY ./docker/image/setup-env.sh ./setup-env.sh
-RUN sed -i "s/%PROJECT_NAME%/$PROJECT_NAME/g" setup-env.sh
+WORKDIR /opt/GridTools
+RUN . /opt/${PROJECT_NAME}_env/setup-env.sh; julia --project=. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
 
 # flatten image
 FROM scratch

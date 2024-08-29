@@ -73,13 +73,14 @@ build_image:
     DOCKERFILE: docker/image/Dockerfile
     DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE2", "PROJECT_NAME=$PROJECT_NAME"]'
 
-run_benchmarks:
+run_tests:
   stage: ci_jobs
   image: $PERSIST_IMAGE_NAME
   extends: .container-runner-daint
   script:
     - . /opt/gridtools_jl_env/setup-env.sh
-    - julia --version
+    - cd /opt/GridTools
+    - julia --project=. -e 'using Pkg; Pkg.test()'
   variables:
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
