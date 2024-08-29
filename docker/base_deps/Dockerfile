@@ -15,6 +15,7 @@ RUN . /opt/${PROJECT_NAME}_env/setup-env.sh; pip cache purge
 
 WORKDIR /opt/gridtools_jl_deps
 COPY ./Project.toml ./Project.toml
+RUN touch src/GridTools.jl
 RUN . /opt/${PROJECT_NAME}_env/setup-env.sh; julia --project=. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
 RUN rm -rf /opt/gridtools_jl_deps
 
