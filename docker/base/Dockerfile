@@ -2,6 +2,7 @@
 FROM ubuntu:23.04 as builder
 ARG INSTALL_CUDA_DRIVER=false
 ARG CUDA_DRIVER_VERSION
+ARG CPU_ARCH
 
 SHELL ["/bin/bash", "-c"]
 
@@ -25,13 +26,7 @@ RUN git clone --depth 1 -c feature.manyFiles=true https://github.com/spack/spack
 WORKDIR ./spack/bin
 
 # avoid issues with proxy in CSCS CI
-RUN ./spack config add config:url_fetch_method:curl
-RUN cat <<EOF > /root/.curlrc
-retry = 10
-retry-all-errors
-retry-connrefused
-retry-max-time = 30
-EOF
+RUN ./spack config add packages:all:target:$CPU_ARCH
 
 RUN ./spack install gcc@11
 
