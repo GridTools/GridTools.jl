@@ -1,9 +1,19 @@
 # ENV["PYCALL_JL_RUNTIME_PYTHON"] = Sys.which("python3.10")
 # ENV["PYTHONBREAKPOINT"] = "pdb.set_trace"
 
+module AtlasMeshes
+
+using GridTools
+using GridTools.ExampleMeshes.Unstructured
 using PyCall
 
-atlas = pyimport("atlas4py")
+export AtlasMesh, atlas, update_periodic_layers, DIMENSION_TO_SIZE_ATTR
+
+const atlas = PyNULL()
+
+function __init__()
+    copy!(atlas, pyimport("atlas4py"))
+end
 
 const rpi = 2.0 * asin(1.0)
 const _deg2rad = 2.0 * rpi / 360.0
@@ -260,7 +270,11 @@ struct AtlasMesh
             "V2V" => v2v,
             "V2E" => v2e,
             "E2V" => e2v,
-            "Koff" => K
+            "Koff" => K,
+            # TODO: cleanup
+            "V2VDim" => v2v,
+            "V2EDim" => v2e,
+            "E2VDim" => e2v,
         )
 
         remote_indices = Dict{Dimension, Array}(
@@ -357,3 +371,5 @@ function update_periodic_layers(mesh::AtlasMesh, field::Field)
     )
     field[periodic_indices, :] .= field[remote_indices[periodic_indices], :]
 end
+
+end # AtlasMeshes module
