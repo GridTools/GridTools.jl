@@ -9,7 +9,7 @@ using Profile
 using Base: @propagate_inbounds
 using MacroTools
 using OffsetArrays: IdOffsetRange
-using Debugger
+using CUDA
 
 import Base.Broadcast: Extruded, Style, BroadcastStyle, ArrayStyle, Broadcasted
 
@@ -156,6 +156,30 @@ julia> field = Field(Cell, ones(5))
 
 julia> field(E2C)
 julia> field(E2C[1])
+```
+
+GPU arrays are supported too.
+
+# Examples
+```julia-repl
+julia> using GridTools
+
+julia> using CUDA: CuArray
+
+julia> using GridTools.ExampleMeshes.Unstructured
+
+       # Create a CuArray of data on the GPU
+
+julia> gpu_data = CuArray(reshape(collect(1.0:12.0), (3, 4)));
+
+       # Create a Field passing data in the CuArray type
+
+julia> gpu_field = Field((Cell,K), gpu_data);
+
+       # Check the type
+
+julia> Base.typeof(gpu_field.data)
+CuArray{Float64, 2, CUDA.DeviceMemory}
 ```
 """
 struct Field{
@@ -609,6 +633,20 @@ function backend_execution(
     end
 end
 
+# It is not currently working in all edge cases
+function check_gpu_data(args::Tuple)::nothing
+    has_CuArray::Bool = false
+    for (i, arg) in enumerate(args)
+        if arg !== nothing && typeof(arg) <: AbstractArray && typeof(arg.data) <: CuArray
+            has_CuArray = true
+        end
+
+        if has_CuArray
+            throw(ArgumentError("GPU Arrays (CuArray) are not supported by the Python backend. Error found in argument #$i: $(typeof(arg.data))."))
+        end
+    end
+end
+
 function backend_execution(
     backend::Val{:py},
     fo::FieldOp,
@@ -624,6 +662,7 @@ function backend_execution(
         f = py_field_operator(fo)
         FIELD_OPERATORS[fo.name] = f
     end
+    # check_gpu_data(args) # TODO: throw an exception in case of gpu arrays passed to the python backend
     p_args, p_kwargs, p_out, p_offset_provider =
         py_args.((args, kwargs, out, GridTools.OFFSET_PROVIDER))
     if is_outermost_fo
