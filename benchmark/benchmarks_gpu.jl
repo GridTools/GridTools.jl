@@ -4,33 +4,25 @@ using GridTools
 using GridTools.ExampleMeshes.Unstructured
 
 # Data size
-const global STREAM_SIZE = 10_000_000
+const STREAM_SIZE::Int64 = 10_000_000
 
 """
-    compute_memory_bandwidth_addition(results, a, b, out)::Tuple{Float64, Int64}
+    compute_memory_bandwidth_addition(time_in_seconds, a, b, out)::Tuple{Float64, Int64}
 
 Function to compute the memory bandwidth for the addition benchmarks.
 
 # Arguments
-- `results`: The benchmark results containing timing information (`times`).
-- `a, b`: The input fields or arrays used in the benchmark.
-- `out`: The output field or array used in the benchmark.
+- `time_in_seconds`: The execution time in seconds.
+- `STREAM_SIZE`: the size used for the arrays
 
 # Returns
 - A tuple `(bandwidth, data_size)` where:
     - `bandwidth`: The memory bandwidth in gigabytes per second (GB/s).
     - `data_size`: The total size of the data processed in bytes.
 """
-function compute_memory_bandwidth_addition(results, a, b, out)::Tuple{Float64, Int64}
-    # Ensure the sizes of the data fields are consistent
-    @assert sizeof(a.data) == sizeof(b.data) == sizeof(out.data)
-
+function compute_memory_bandwidth_addition(time_in_seconds::Float64, STREAM_SIZE::Int64, data_type::Type)::Tuple{Float64, Int64}
     # Calculate the total size of data read and written in bytes
-    # Read from `a` and `b`, and write to `out`
-    data_size = sizeof(a.data) + sizeof(b.data) + sizeof(out.data)
-
-    # Compute the median execution time from benchmark results in seconds (convert from nanoseconds)
-    time_in_seconds = median(results.times) / 1e9
+    data_size = 3 * STREAM_SIZE * sizeof(data_type)  # (a + b + out), each Float64 is 8 bytes
 
     # Calculate memory bandwidth in GB/s
     bandwidth = data_size / time_in_seconds / 1e9
@@ -49,14 +41,14 @@ Setup function for the GPU broadcast addition benchmark using CuArray.
 - `ARRAY_SIZE::Int64`: The size of the GPU arrays to be generated.
 
 # Returns
-- `a, b`: Two CuArray GPU arrays of size `ARRAY_SIZE`.
-- `data_size`: The total size of the data processed.
+- `a_gpu`, `b_gpu`, `out_gpu`: Three CuArray GPU arrays of size `ARRAY_SIZE`.
 """
-function gpu_broadcast_addition_setup(ARRAY_SIZE::Int64)::Tuple{CuArray{Float64,1}, CuArray{Float64,1}, Int64}
-    a_gpu = CuArray(rand(Float64, ARRAY_SIZE))
-    b_gpu = CuArray(rand(Float64, ARRAY_SIZE))
-    data_size = sizeof(a_gpu) + sizeof(b_gpu)  # Total bytes processed
-    return a_gpu, b_gpu, data_size
+function gpu_broadcast_addition_setup(ARRAY_SIZE::Int64)::Tuple{CuArray{Float64,1}, CuArray{Float64,1}, CuArray{Float64,1}}
+    randcuarr = () -> CuArray(rand(Float64, ARRAY_SIZE))
+    a_gpu = randcuarr()
+    b_gpu = randcuarr()
+    out_gpu = randcuarr()
+    return a_gpu, b_gpu, out_gpu
 end
 
 """
@@ -72,89 +64,74 @@ Setup function for the GPU field broadcast addition benchmark using CuArray.
 - `out`: An output field similar to `a`, used for storing operation results.
 """
 function gpu_fields_broadcast_addition_setup(FIELD_DATA_SIZE::Int64)::Tuple{Field, Field, Field}
-    a_gpu = Field(Cell, CuArray(rand(Float64, FIELD_DATA_SIZE)))
-    b_gpu = Field(Cell, CuArray(rand(Float64, FIELD_DATA_SIZE)))
-    out_gpu = GridTools.similar_field(a_gpu)
+    randfieldcuarr = () -> Field(Cell, CuArray(rand(Float64, FIELD_DATA_SIZE)))
+    a_gpu = randfieldcuarr()
+    b_gpu = randfieldcuarr()
+    out_gpu = randfieldcuarr()
     return a_gpu, b_gpu, out_gpu
 end
 
 # CuArray only
-function gpu_broadcast_addition_array(a::CuArray{Float64}, b::CuArray{Float64})::CuArray{Float64}
+function arr_add_wrapper!(out::CuArray{Float64,1}, a::CuArray{Float64,1}, b::CuArray{Float64,1})
+    CUDA.@sync begin
+        out = a .+ b
+    end
+end
+
+# Fields only
+function field_add_wrapper!(out::Field{Tuple{Cell_},Float64}, a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})
+    CUDA.@sync begin
+        out = a .+ b
+    end
+end
+
+# Field operator
+@field_operator function gpu_fo_addition(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
     return a .+ b
 end
 
-# Fields and broadcasting
-function gpu_broadcast_addition_fields(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
-    return a .+ b
-end
-
-function arr_add_wrapper(a, b)
+function gpu_fo_addition_wrapper!(out::Field{Tuple{Cell_},Float64}, a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})
     CUDA.@sync begin
-        return gpu_broadcast_addition_array(a,b)
+        gpu_fo_addition(a, b, backend="embedded", out=out)
     end
 end
 
-function field_add_wrapper(a, b)
-    CUDA.@sync begin
-        return gpu_broadcast_addition_fields(a,b)
-    end
-end
+# Benchmarks with @belapsed
 
-@field_operator function gpu_fo_addition_with_wrapper(a::Field{Tuple{Cell_},Float64}, b::Field{Tuple{Cell_},Float64})::Field{Tuple{Cell_},Float64}
-    CUDA.@sync begin
-        return a .+ b
-    end
-end
+# CuArray  -----------------------------------------------------------------------------------------------------------
+a_gpu, b_gpu, out_gpu = gpu_broadcast_addition_setup(STREAM_SIZE)
 
-# Benchmarks -------------------------------------------------------------------------------------------------
+println("Benchmarking GPU array broadcast addition:")
+gpu_array_time = @belapsed arr_add_wrapper!($out_gpu, $a_gpu, $b_gpu)
 
-# Create the GPU benchmark SUITE
-SUITE_GPU = BenchmarkGroup()
-
-# Define the GPU addition benchmarks
-SUITE_GPU["gpu_addition"] = BenchmarkGroup()
-
-# GPU broadcast addition benchmark
-a_gpu, b_gpu, data_size_gpu = gpu_broadcast_addition_setup(STREAM_SIZE)
-SUITE_GPU["gpu_addition"]["gpu_array_broadcast_addition"] = @benchmarkable $arr_add_wrapper($a_gpu, $b_gpu)
-
-# GPU Field broadcast addition benchmark # TODO(lorenzovarese): fix the CUDA.@sync, results are unrealistic
-a_gpu, b_gpu, out_gpu = gpu_fields_broadcast_addition_setup(STREAM_SIZE)
-SUITE_GPU["gpu_addition"]["gpu_fields_broadcast_addition"] = @benchmarkable $field_add_wrapper($a_gpu, $b_gpu)
-
-# GPU Field Operator broadcast addition benchmark # TODO(lorenzovarese): fix the CUDA.@sync, results are unrealistic
-a_gpu, b_gpu, out_gpu = gpu_fields_broadcast_addition_setup(STREAM_SIZE)
-SUITE_GPU["gpu_addition"]["gpu_field_op_broadcast_addition"] = @benchmarkable $gpu_fo_addition($a_gpu, $b_gpu, backend="embedded", out=$out_gpu)
-
-# Running the GPU benchmark SUITE
-println("Running the GPU benchmark SUITE...")
-gpu_results = run(SUITE_GPU)
-
-# Process and print the GPU results
-gpu_array_results = gpu_results["gpu_addition"]["gpu_array_broadcast_addition"]
-gpu_fields_results = gpu_results["gpu_addition"]["gpu_fields_broadcast_addition"]
-gpu_fo_results = gpu_results["gpu_addition"]["gpu_field_op_broadcast_addition"]
-
-# Compute memory bandwidth for GPU benchmarks
-gpu_array_bandwidth, data_size_arr_gpu = compute_memory_bandwidth_addition(gpu_array_results, a_gpu, b_gpu, a_gpu)
-gpu_fields_bandwidth, data_size_fields_gpu = compute_memory_bandwidth_addition(gpu_fields_results, a_gpu, b_gpu, a_gpu)
-gpu_fo_bandwidth, data_size_fo_gpu = compute_memory_bandwidth_addition(gpu_fo_results, a_gpu, b_gpu, out_gpu)
-
-# Function to convert nanoseconds to milliseconds for clearer output
-ns_to_ms(time_ns) = time_ns / 1e6
-
-# Output results for GPU benchmarks
+# Compute memory bandwidth for GPU array benchmark
+gpu_array_bandwidth, data_size_arr_gpu = compute_memory_bandwidth_addition(gpu_array_time, STREAM_SIZE, eltype(a_gpu))
 println("GPU Array broadcast addition:")
 println("\tData size: $data_size_arr_gpu")
-println("\tBandwidth: $gpu_array_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(gpu_array_results.times))) ms\n")
+println("\tTime:      $gpu_array_time")
+println("\tBandwidth: $gpu_array_bandwidth GB/s\n")
 
-println("GPU Fields data broadcast addition:")
+# Fields  -------------------------------------------------------------------------------------------------------------
+a_gpu, b_gpu, out_gpu = gpu_fields_broadcast_addition_setup(STREAM_SIZE)
+
+println("Benchmarking GPU fields broadcast addition:")
+gpu_fields_time = @belapsed field_add_wrapper!($out_gpu, $a_gpu, $b_gpu)
+
+# Compute memory bandwidth for GPU fields benchmark
+gpu_fields_bandwidth, data_size_fields_gpu = compute_memory_bandwidth_addition(gpu_fields_time, STREAM_SIZE, eltype(a_gpu.data))
+println("GPU Fields broadcast addition:")
 println("\tData size: $data_size_fields_gpu")
-println("\tBandwidth: $gpu_fields_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(gpu_fields_results.times))) ms\n")
+println("\tTime:      $gpu_fields_time")
+println("\tBandwidth: $gpu_fields_bandwidth GB/s\n")
 
+# Field operator -------------------------------------------------------------------------------------------------------
+a_gpu, b_gpu, out_gpu = gpu_fields_broadcast_addition_setup(STREAM_SIZE)
+
+println("Benchmarking GPU field operator broadcast addition:")
+gpu_fo_time = @belapsed field_add_wrapper!($out_gpu, $a_gpu, $b_gpu)
+
+# Compute memory bandwidth for GPU field operator benchmark
+gpu_fo_bandwidth, data_size_fo_gpu = compute_memory_bandwidth_addition(gpu_fo_time, STREAM_SIZE, eltype(a_gpu.data))
 println("GPU Field Operator broadcast addition:")
 println("\tData size: $data_size_fo_gpu")
-println("\tBandwidth: $gpu_fo_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(gpu_fo_results.times))) ms\n")
+println("\tBandwidth: $gpu_fo_bandwidth GB/s\n")
