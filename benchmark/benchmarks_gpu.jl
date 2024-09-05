@@ -30,6 +30,11 @@ function compute_memory_bandwidth_addition(time_in_seconds::Float64, STREAM_SIZE
     return bandwidth, data_size
 end
 
+# Util for pretty print the results
+function format_number_with_dots(n::Int)
+    return reverse(join(Iterators.partition(reverse(string(n)), 3), "."))
+end
+
 # GPU Setup Functions -----------------------------------------------------------------------------------------
 
 """
@@ -107,8 +112,8 @@ gpu_array_time = @belapsed arr_add_wrapper!($out_gpu, $a_gpu, $b_gpu)
 # Compute memory bandwidth for GPU array benchmark
 gpu_array_bandwidth, data_size_arr_gpu = compute_memory_bandwidth_addition(gpu_array_time, STREAM_SIZE, eltype(a_gpu))
 println("GPU Array broadcast addition:")
-println("\tData size: $data_size_arr_gpu")
-println("\tTime:      $gpu_array_time")
+println("\tData size: $(format_number_with_dots(data_size_arr_gpu)) bytes")
+println("\tTime:      $gpu_array_time s")
 println("\tBandwidth: $gpu_array_bandwidth GB/s\n")
 
 # Fields  -------------------------------------------------------------------------------------------------------------
@@ -120,8 +125,8 @@ gpu_fields_time = @belapsed field_add_wrapper!($out_gpu, $a_gpu, $b_gpu)
 # Compute memory bandwidth for GPU fields benchmark
 gpu_fields_bandwidth, data_size_fields_gpu = compute_memory_bandwidth_addition(gpu_fields_time, STREAM_SIZE, eltype(a_gpu.data))
 println("GPU Fields broadcast addition:")
-println("\tData size: $data_size_fields_gpu")
-println("\tTime:      $gpu_fields_time")
+println("\tData size: $(format_number_with_dots(data_size_fields_gpu)) bytes")
+println("\tTime:      $gpu_fields_time s")
 println("\tBandwidth: $gpu_fields_bandwidth GB/s\n")
 
 # Field operator -------------------------------------------------------------------------------------------------------
@@ -133,5 +138,6 @@ gpu_fo_time = @belapsed field_add_wrapper!($out_gpu, $a_gpu, $b_gpu)
 # Compute memory bandwidth for GPU field operator benchmark
 gpu_fo_bandwidth, data_size_fo_gpu = compute_memory_bandwidth_addition(gpu_fo_time, STREAM_SIZE, eltype(a_gpu.data))
 println("GPU Field Operator broadcast addition:")
-println("\tData size: $data_size_fo_gpu")
+println("\tData size: $(format_number_with_dots(data_size_fo_gpu)) bytes")
+println("\tTime:      $gpu_fo_time s")
 println("\tBandwidth: $gpu_fo_bandwidth GB/s\n")
