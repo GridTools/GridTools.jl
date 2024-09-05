@@ -1,3 +1,4 @@
+# rebuild counter 1  # just a counter to increase when we want a new image
 ARG BASE_IMAGE=gridtools_jl_base_image
 FROM $BASE_IMAGE as builder
 ARG PROJECT_NAME=gridtools_jl
