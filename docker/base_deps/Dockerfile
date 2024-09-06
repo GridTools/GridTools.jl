@@ -1,4 +1,4 @@
-# rebuild counter 1  # just a counter to increase when we want a new image
+# rebuild counter 2  # just a counter to increase when we want a new image
 ARG BASE_IMAGE=gridtools_jl_spack_deps_image
 FROM $BASE_IMAGE as builder
 ARG PROJECT_NAME
