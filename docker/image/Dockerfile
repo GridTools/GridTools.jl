@@ -6,6 +6,7 @@ ARG PROJECT_NAME
 COPY ./ /opt/GridTools
 
 WORKDIR /opt/GridTools
+RUN . /opt/${PROJECT_NAME}_env/setup-env.sh; spack find
 RUN . /opt/${PROJECT_NAME}_env/setup-env.sh; julia --project=. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
 
 # flatten image
