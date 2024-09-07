@@ -25,8 +25,8 @@ RUN git clone --depth 1 -c feature.manyFiles=true https://github.com/spack/spack
 
 WORKDIR ./spack/bin
 
-# avoid issues with proxy in CSCS CI
-RUN ./spack config add packages:all:target:[$CPU_ARCH]
+# careful: this overrides and will be overriden by other configuration to packages:all:require
+RUN ./spack config add packages:all:require:target=x86_64
 
 RUN ./spack install gcc@11
 
