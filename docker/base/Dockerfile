@@ -26,7 +26,7 @@ RUN git clone --depth 1 -c feature.manyFiles=true https://github.com/spack/spack
 WORKDIR ./spack/bin
 
 # careful: this overrides and will be overriden by other configuration to packages:all:require
-RUN ./spack config add packages:all:require:target=x86_64
+RUN ./spack config add packages:all:require:target=$CPU_ARCH
 
 RUN ./spack install gcc@11
 
