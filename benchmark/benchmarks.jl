@@ -383,4 +383,3 @@ println("\tTime taken: $(ns_to_ms(median(remapping_results.times))) ms\n")
 
 println("Field Operator Neighbor Sum:")
 println("\tTime taken: $(ns_to_ms(median(neighbor_sum_results.times))) ms\n")
-
