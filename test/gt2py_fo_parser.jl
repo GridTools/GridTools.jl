@@ -1,8 +1,6 @@
 using Test
 using GridTools
-
-
-include("mesh_definitions.jl")
+using GridTools.ExampleMeshes.Unstructured
 
 struct TestFailedException <: Exception
     message::String
