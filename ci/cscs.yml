@@ -83,6 +83,7 @@ run_tests:
     - . /opt/gridtools_jl_env/setup-env.sh
     - cd /opt/GridTools
     - julia --project=. -e 'using Pkg; Pkg.test()'
+    - julia --project=. --threads 8 benchmark/benchmarks.jl
   variables:
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
