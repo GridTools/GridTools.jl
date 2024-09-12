@@ -1,103 +1,102 @@
-name: Benchmark a pull request
+name: GridTools Benchmark CI Pipeline
 
 on:
-  pull_request_target:
+  push:
     branches:
-      - master
+      - main
+    tags: ['*']
+  pull_request:
 
-permissions:
-  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  generate_plots:
-    runs-on: ubuntu-latest
+  benchmark:
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        julia_version:
+          - '1.8'
+        python_version:
+          - '3.10'
+        os:
+          - ubuntu-latest
+        arch:
+          - x64
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python environment
+      - name: Set up Python ${{ matrix.python_version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip python3-venv
-          python3 -m venv ~/gt4py-venv
-          source ~/gt4py-venv/bin/activate
-          python3 -m pip install --upgrade pip
-          pip install -i https://test.pypi.org/simple/ atlas4py
+          sudo apt-get install -y libboost-all-dev
+          python -m pip install --upgrade pip
 
-      - name: Install GT4Py from specific branch and atlas4py
+      - name: Install GT4Py and atlas4py
         run: |
-          source ~/gt4py-venv/bin/activate
-          git clone --branch fix_python_interp_path_in_cmake https://github.com/tehrengruber/gt4py.git ~/gt4py
-          cd ~/gt4py
+          git clone --branch fix_python_interp_path_in_cmake https://github.com/tehrengruber/gt4py.git
+          cd gt4py
           pip install -r requirements-dev.txt
-          pip install -e .
+          pip install .
           pip install -i https://test.pypi.org/simple/ atlas4py
 
       - uses: julia-actions/setup-julia@v1
         with:
-          version: "1.8"
+          version: ${{ matrix.julia_version }}
+          arch: ${{ matrix.arch }}
 
-      - uses: actions/cache@v3
-        name: Cache Julia packages
-        with:
-          path: ~/.julia
-          key: ${{ runner.os }}-julia-${{ hashFiles('**/Project.toml', '**/Manifest.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-julia-
+      - uses: julia-actions/cache@v1
 
-      - uses: actions/cache@v3
-        name: Cache Python packages
-        with:
-          path: ~/gt4py-venv
-          key: ${{ runner.os }}-python-${{ hashFiles('**/requirements-dev.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-python-
-
-      - name: Configure PyCall
-        run: |
-          source ~/gt4py-venv/bin/activate
-          julia --project=. -e 'using Pkg; Pkg.add("PyCall"); ENV["PYTHON"]="python"; Pkg.build("PyCall");'
-          julia --project=. -e 'using PyCall; @show PyCall.python'
-
-      - name: Install and Build AirspeedVelocity
+      - name: Install and Build Benchmarking Tools
         run: |
           julia -e 'using Pkg; Pkg.add("AirspeedVelocity"); Pkg.build("AirspeedVelocity")'
           echo "$HOME/.julia/bin" >> $GITHUB_ENV
+          ls $HOME/.julia/bin
 
-      - name: Extract Package Name from Project.toml
-        id: extract-package-name
-        run: |
-          PACKAGE_NAME=$(grep "^name" Project.toml | sed 's/^name = "\(.*\)"$/\1/')
-          echo "::set-output name=package_name::$PACKAGE_NAME"
-
-      - name: Run benchmarks
+      - name: Run Benchmarks
         run: |
           echo $PATH
-          ls -l ~/.julia/bin
           mkdir results
-          benchpkg ${{ steps.extract-package-name.outputs.package_name }} --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" --url=${{ github.event.repository.clone_url }} --bench-on="${{github.event.repository.default_branch}}" --output-dir=results/ --tune
+          benchpkg --rev="${{ github.sha }},$(git rev-parse HEAD^1)" --bench-on="${{ github.sha }}" --output-dir=results/ --tune
 
-      - name: Create plots from benchmarks
+      - name: Generate and Upload Benchmark Plots
         run: |
-          mkdir -p plots
-          benchpkgplot ${{ steps.extract-package-name.outputs.package_name }} --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
+          mkdir plots
+          benchpkgplot --rev="${{ github.sha }},$(git rev-parse HEAD^1)" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
+        if: always()
 
-      - name: Upload plot as artifact
-        uses: actions/upload-artifact@v2
+      - name: Upload Plots as Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: plots
+          name: benchmark-plots
           path: plots
 
-      - name: Create markdown table from benchmarks
+      - name: Create and Display Benchmark Table
         run: |
-          benchpkgtable ${{ steps.extract-package-name.outputs.package_name }} --rev="${{github.event.repository.default_branch}},${{github.event.pull_request.head.sha}}" --input-dir=results/ --ratio > table.md
+          benchpkgtable --rev="${{ github.sha }},$(git rev-parse HEAD^1)" --input-dir=results/ > table.md
+          cat table.md
           echo '### Benchmark Results' > body.md
           cat table.md >> body.md
           echo '### Benchmark Plots' >> body.md
-          echo 'A plot of the benchmark results have been uploaded as an artifact to the workflow run for this PR.' >> body.md
-          echo 'Go to "Actions"->"Benchmark a pull request"->[the most recent run]->"Artifacts" (at the bottom).' >> body.md
+          echo 'A plot of the benchmark results has been uploaded as an artifact to this workflow run.' >> body.md
+          cat body.md  # Print the markdown table to the log for review.
 
-      - name: Find Comment
+      - name: Upload Benchmark Results Table
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-table
+          path: body.md
+
+      - name: Find and Comment Benchmark Results
         uses: peter-evans/find-comment@v2
         id: fcbenchmark
         with:
@@ -105,7 +104,7 @@ jobs:
           comment-author: 'github-actions[bot]'
           body-includes: Benchmark Results
 
-      - name: Comment on PR
+      - name: Comment on PR with Benchmark Results
         uses: peter-evans/create-or-update-comment@v3
         with:
           comment-id: ${{ steps.fcbenchmark.outputs.comment-id }}
