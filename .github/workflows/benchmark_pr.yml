@@ -59,7 +59,7 @@ jobs:
       - name: Install and Build Benchmarking Tools
         run: |
           julia -e 'using Pkg; Pkg.add("AirspeedVelocity"); Pkg.build("AirspeedVelocity")'
-          echo "$HOME/.julia/bin" >> $GITHUB_ENV
+          echo "PATH=$PATH:$HOME/.julia/bin" >> $GITHUB_ENV
           ls $HOME/.julia/bin
 
       - name: Run Benchmarks
@@ -68,11 +68,15 @@ jobs:
           mkdir results
           benchpkg --rev="${{ github.sha }},$(git rev-parse HEAD^1)" --bench-on="${{ github.sha }}" --output-dir=results/ --tune
 
-      - name: Generate and Upload Benchmark Plots
-        run: |
-          mkdir plots
-          benchpkgplot --rev="${{ github.sha }},$(git rev-parse HEAD^1)" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
-        if: always()
+          - name: Generate and Upload Benchmark Plots
+          run: |
+            mkdir -p plots
+            git fetch origin main:refs/remotes/origin/main
+            LAST_MAIN_COMMIT=$(git rev-parse origin/main)
+            CURRENT_COMMIT=$(git rev-parse HEAD)
+            echo "Comparing CURRENT_COMMIT ($CURRENT_COMMIT) with LAST_MAIN_COMMIT ($LAST_MAIN_COMMIT)"
+            benchpkgplot --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
+          if: always()
 
       - name: Upload Plots as Artifacts
         uses: actions/upload-artifact@v4
@@ -82,13 +86,21 @@ jobs:
 
       - name: Create and Display Benchmark Table
         run: |
-          benchpkgtable --rev="${{ github.sha }},$(git rev-parse HEAD^1)" --input-dir=results/ > table.md
-          cat table.md
+          git fetch origin main:refs/remotes/origin/main  # Ensures you have the latest main branch
+          if [ $(git rev-list --count HEAD) -gt 1 ]; then
+            PREV_COMMIT=$(git rev-parse HEAD^1)
+          else
+            PREV_COMMIT=$(git rev-parse HEAD)  # Fallback to the current commit if there's no previous commit
+          fi
+          LAST_MAIN_COMMIT=$(git rev-parse origin/main)  # Ensures comparison against the latest commit in main
+          echo "Using revisions: $LAST_MAIN_COMMIT and $PREV_COMMIT for benchmark comparison."
+          benchpkgtable --rev="$LAST_MAIN_COMMIT,$PREV_COMMIT" --input-dir=results/ > table.md
           echo '### Benchmark Results' > body.md
           cat table.md >> body.md
           echo '### Benchmark Plots' >> body.md
           echo 'A plot of the benchmark results has been uploaded as an artifact to this workflow run.' >> body.md
           cat body.md  # Print the markdown table to the log for review.
+        if: always()
 
       - name: Upload Benchmark Results Table
         uses: actions/upload-artifact@v4
