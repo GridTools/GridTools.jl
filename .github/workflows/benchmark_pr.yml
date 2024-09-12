@@ -83,7 +83,7 @@ jobs:
           LAST_MAIN_COMMIT=$(git rev-parse origin/main)
           CURRENT_COMMIT=$(git rev-parse HEAD)
           echo "Generating plots comparing CURRENT_COMMIT ($CURRENT_COMMIT) with LAST_MAIN_COMMIT ($LAST_MAIN_COMMIT)"
-          benchpkgplot --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
+          benchpkgplot GridTools --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
         if: always()
       
       - name: Upload Plots as Artifacts
