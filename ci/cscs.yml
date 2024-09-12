@@ -65,7 +65,7 @@ build_base_stage2_image_job:
     DOCKERFILE: docker/base_deps/Dockerfile
     DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE1", "PROJECT_NAME=$PROJECT_NAME"]'
     PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/gridtools/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_stage2_image
-    WATCH_FILECHANGES: 'docker/base/Dockerfile docker/base_spack_deps/Dockerfile docker/base_spack_deps/spack-daint-p100.yaml docker/base_deps/Dockerfile'  # TODO: inherit from stage1
+    WATCH_FILECHANGES: 'docker/base/Dockerfile docker/base_spack_deps/Dockerfile docker/base_spack_deps/spack-daint-p100.yaml docker/base_deps/Dockerfile docker/base_deps/setup-env.sh'  # TODO: inherit from stage1
     ENV_VAR_NAME: BASE_IMAGE_STAGE2
 
 build_image:
