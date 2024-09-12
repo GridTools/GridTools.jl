@@ -1,8 +1,17 @@
-
 # ExampleMeshes.Unstructured -----------------------------------------------------------------------------------------------
 
+module ExampleMeshes
+
+module Unstructured
+
+using GridTools
+
+export Cell_, K_, Edge_, Vertex_, V2VDim_, V2EDim_, E2VDim_, E2CDim_, C2EDim_
+export Cell, K, Edge, Vertex, V2VDim, V2EDim, E2VDim, E2CDim, C2EDim
+export V2V, E2V, V2E, E2C, C2E, Koff
+
 const global Cell_ = Dimension{:Cell_, HORIZONTAL}
-const global K_ = Dimension{:K_, HORIZONTAL}
+const global K_ = Dimension{:K_, VERTICAL}
 const global Edge_ = Dimension{:Edge_, HORIZONTAL}
 const global Vertex_ = Dimension{:Vertex_, HORIZONTAL}
 const global V2VDim_ = Dimension{:V2VDim_, LOCAL}
@@ -27,7 +36,15 @@ const global E2C = FieldOffset("E2C", source=Cell, target=(Edge, E2CDim))
 const global C2E = FieldOffset("C2E", source=Edge, target=(Cell, C2EDim))
 const global Koff = FieldOffset("Koff", source=K, target=K)
 
+end
+
 # ExampleMeshes.Cartesian --------------------------------------------------------------------------------------------------
+
+module Cartesian
+
+using GridTools
+
+export IDim_, JDim_, IDim, JDim, Ioff, Joff
 
 const global IDim_ = Dimension{:IDim_, HORIZONTAL}
 const global JDim_ = Dimension{:JDim_, HORIZONTAL}
@@ -36,3 +53,7 @@ const global JDim = JDim_()
 
 const global Ioff = FieldOffset("Ioff", source=IDim, target=IDim)
 const global Joff = FieldOffset("Joff", source=JDim, target=JDim)
+
+end
+
+end # ExampleMeshes module

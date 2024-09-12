@@ -475,6 +475,7 @@ Base.convert(t::Type{T}, F::Field) where {T <: Number} =
     inds::Vararg{Int, N}
 ) where {BD, T, N}
     new_inds = inds .- F.origin
+    # @assert Tuple(1 for i in 1:length(new_inds)) <= new_inds <= size(F.data) "Error: $new_inds, $(size(F.data)), $(F.origin)"
     return F.data[new_inds...]
 end
 @propagate_inbounds function Base.setindex!(
@@ -488,8 +489,9 @@ end
 Base.showarg(io::IO, @nospecialize(F::Field), toplevel) =
     print(io, eltype(F), " Field with dimensions ", get_dim_name.(F.broadcast_dims))
 function slice(F::Field, inds...)::Field
+    @assert all(typeof(x) <: UnitRange{Int64} for x in inds) # TODO: understand why the line below is filtering the UnitRange only
     dim_ind = findall(x -> typeof(x) <: UnitRange{Int64}, inds)
-    return Field(F.dims[dim_ind], view(F.data, inds...), F.broadcast_dims)
+    return Field(F.dims[dim_ind], view(F.data, inds...), F.broadcast_dims, origin=Dict(d=>ind[1]-1 for (d,ind) in zip(F.dims, inds)))
 end
 
 # Connectivity struct ------------------------------------------------------------
@@ -561,7 +563,6 @@ function (fo::FieldOp)(
     out = nothing,
     kwargs...
 )
-
     is_outermost_fo = isnothing(OFFSET_PROVIDER)
     if is_outermost_fo
         @assert !isnothing(out) "Must provide an out field."
@@ -705,8 +706,20 @@ macro module_vars()
                 name => Core.eval(Base, name) for
                 name in [:Int64, :Int32, :Float32, :Float64]
             )
+            all_names = names(@__MODULE__, all=true)
+            used_modules = ccall(:jl_module_usings, Any, (Any,), @__MODULE__)
+            for m in used_modules
+                append!(all_names, names(m))
+            end
+            
+            # Filtering symbols that are exported but not defined
+            filter!(all_names) do name
+                return isdefined(@__MODULE__, name)
+            end
+
+            # TODO: cleanup this hacky
             module_vars =
-                Dict(name => Core.eval(@__MODULE__, name) for name in names(@__MODULE__))
+                Dict(name => Core.eval(@__MODULE__, name) for name in all_names)
             local_vars = Base.@locals
             merge(base_vars, module_vars, local_vars, GridTools.builtin_op)
         end
@@ -743,5 +756,8 @@ macro field_operator(expr::Expr)
 end
 
 generate_unique_name(name::Symbol, value::Integer = 0) = Symbol("$(name)ᐞ$(value)")
+
+include("ExampleMeshes.jl")
+include("atlas/AtlasMeshes.jl")
 
 end
