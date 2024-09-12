@@ -10,7 +10,7 @@ variables:
   CUDA_DRIVER_VERSION: "470.57.02"
   PROJECT_NAME: gridtools_jl
   PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/pasc_kilos/${CONTAINER_RUNNER}/${PROJECT_NAME}_image:$CI_COMMIT_SHORT_SHA
-  CPU_ARCH: "x86_64"  # use a generic architecture here instead of linux-sles15-haswell, such that it can build on zen2
+  CPU_ARCH: "x86_64_v3"  # use a generic architecture here instead of linux-sles15-haswell, such that it can build on zen2
 
 include:
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
