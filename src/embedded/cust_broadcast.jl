@@ -1,3 +1,6 @@
+
+using Base.Threads: @threads
+
 Base.BroadcastStyle(::Type{<:Field}) = Broadcast.ArrayStyle{Field}()
 
 # TODO(tehrengruber): Implement a range with an attached dimension instead of this single object
@@ -66,7 +69,7 @@ function get_size_ifelse(mask::FieldShape, branch::FieldShape)
     out_size = [branch.axes...]
     ind_mask = findall(x -> x in branch.dims, mask.dims)
     ind_out = findall(x -> x in mask.dims, branch.dims)
-
+    # TODO: this is not correct if the mask has an origin
     out_size[ind_out] .= mask.axes[ind_mask]
 
     return FieldShape(branch.dims, Tuple(out_size), branch.broadcast_dims)
@@ -257,7 +260,7 @@ end
 
     # Performance may vary depending on whether `@inbounds` is placed outside the
     # for loop or not. (cf. https://github.com/JuliaLang/julia/issues/38086)
-    @inbounds @simd for I in eachindex(dest)
+    @inbounds @threads for I in eachindex(dest)
         dest[I] = bc′[I]
     end
     return dest

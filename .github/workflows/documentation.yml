@@ -1,10 +1,10 @@
-name: Documentation
+name: Documentation Build
 
 on:
   push:
     branches:
-      - main # update to match your development branch (master, main, dev, trunk, ...)
-    tags: '*'
+      - main # Reflects your active development branch
+    tags: ['*']
   pull_request:
 
 jobs:
@@ -13,14 +13,31 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
+      - name: Set up Python environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install python3-pip
+          python3 -m pip install --upgrade pip
+
+      - name: Install GT4Py and atlas4py
+        run: |
+          git clone --branch fix_python_interp_path_in_cmake https://github.com/tehrengruber/gt4py.git
+          cd gt4py
+          pip install -r requirements-dev.txt
+          pip install .
+          pip install -i https://test.pypi.org/simple/ atlas4py
+
       - uses: julia-actions/setup-julia@v1
         with:
           version: '1.8'
-      - name: Install dependencies
+
+      - name: Install Julia dependencies
         run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-      - name: Build and deploy
+
+      - name: Build and deploy documentation
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
-          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Used for Git operations by Documenter.jl
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If using SSH deploy keys for secure operations
         run: julia --project=docs/ docs/make.jl
