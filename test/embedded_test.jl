@@ -135,8 +135,8 @@ end
 
     # Broadcast -------------------------
 
-    @test typeof(broadcast(cell_values, (Cell, K))) == Field{Tuple{Dimension{:Cell_, HORIZONTAL}, Dimension{:K_, HORIZONTAL}}, Float64, 1, Tuple{Dimension{:Cell_, HORIZONTAL}}, Vector{Float64}}
-    @test typeof(broadcast(5.0, (Cell, K))) == Field{Tuple{Dimension{:Cell_, HORIZONTAL}, Dimension{:K_, HORIZONTAL}}, Float64, 0, Tuple{}, Array{Float64, 0}}
+    @test typeof(broadcast(cell_values, (Cell, K))) == Field{Tuple{Dimension{:Cell_, HORIZONTAL}, Dimension{:K_, VERTICAL}}, Float64, 1, Tuple{Dimension{:Cell_, HORIZONTAL}}, Vector{Float64}}
+    @test typeof(broadcast(5.0, (Cell, K))) == Field{Tuple{Dimension{:Cell_, HORIZONTAL}, Dimension{:K_, VERTICAL}}, Float64, 0, Tuple{}, Array{Float64, 0}}
 
     # Where -----------------------------------------
 

@@ -11,7 +11,7 @@ export Cell, K, Edge, Vertex, V2VDim, V2EDim, E2VDim, E2CDim, C2EDim
 export V2V, E2V, V2E, E2C, C2E, Koff
 
 const global Cell_ = Dimension{:Cell_, HORIZONTAL}
-const global K_ = Dimension{:K_, HORIZONTAL}
+const global K_ = Dimension{:K_, VERTICAL}
 const global Edge_ = Dimension{:Edge_, HORIZONTAL}
 const global Vertex_ = Dimension{:Vertex_, HORIZONTAL}
 const global V2VDim_ = Dimension{:V2VDim_, LOCAL}
