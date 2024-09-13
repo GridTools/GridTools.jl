@@ -102,16 +102,16 @@ function copy_borders!(dest_matrix::Matrix{Float64}, src_matrix::Matrix{Float64}
     return dest_matrix
 end
 
-function lap_reference(in_field_data::Matrix{Float64})::Matrix{Float64}
+function lap_reference(in_field_data::Matrix{Float64}, initialized_out_field_data::Matrix{Float64})::Matrix{Float64}
     nrows, ncols = size(in_field_data)
     @assert nrows >= 3 && ncols >= 3 "Input matrix must be at least 3x3 to compute stencil operations."
 
-    out_field_data = similar(in_field_data)
+    out_field_data = deepcopy(initialized_out_field_data)
 
     for i in 2:(nrows - 1)
         for j in 2:(ncols - 1)
             # Perform the stencil operation
-            out_field_data[i, j] = -4 * in_field_data[i, j] + 
+            out_field_data[i-1, j-1] = -4 * in_field_data[i, j] + 
                                 in_field_data[i+1, j]   + 
                                 in_field_data[i-1, j]   + 
                                 in_field_data[i, j+1]   + 
@@ -119,20 +119,44 @@ function lap_reference(in_field_data::Matrix{Float64})::Matrix{Float64}
         end
     end
 
-    copy_borders!(out_field_data, in_field_data, 1) # Border values are not computed with the stencil operation
     return out_field_data
 end
 
-function lap_lap_reference(in_field_data::Matrix{Float64})
-    x_length, y_length = size(in_field_data)
-    @assert x_length >= 5 && y_length >= 5 "Input matrix must be at least 5x5 to compute double laplacian."
+function lap_lap_reference(in_field_data::Matrix{Float64}, initialized_out_field_data::Matrix{Float64})::Matrix{Float64}
+    in_rows, in_cols = size(in_field_data)
+    @assert in_rows >= 5 && in_cols >=5 "The data size for double laplacian should be at least 5x5"
+    
+    # Function to compute the Laplacian of a matrix
+    function laplacian(matrix::Matrix{Float64})::Matrix{Float64}
+        rows, cols = size(matrix)
+        laplacian_matrix = 3*ones(Float64, rows - 2, cols - 2)
 
-    out_field_data = similar(in_field_data)
+        for i in 2:(rows - 1)
+            for j in 2:(cols - 1)
+                laplacian_matrix[i - 1, j - 1] = matrix[i - 1, j] + matrix[i + 1, j] +
+                                                 matrix[i, j - 1] + matrix[i, j + 1] -
+                                                 4 * matrix[i, j]
+            end
+        end
 
-    out_field_data = lap_reference(lap_reference(in_field_data)) 
+        return laplacian_matrix
+    end
 
-    copy_borders!(out_field_data, in_field_data, 2) # Border values are not computed with the stencil operation
-    return out_field_data
+    # If input field is nxn
+    # First Laplacian (will result in a (n-2)x(n-2) matrix)
+    first_laplacian = laplacian(in_field_data)
+    first_rows, first_cols = size(first_laplacian)
+    @assert first_rows == in_rows-2 && first_cols == in_cols-2 "Dimension mismatch after the first laplacian"
+
+    # Second Laplacian (will result in a (n-4)x(n-4) matrix)
+    second_laplacian = laplacian(first_laplacian)
+    second_rows, second_cols = size(second_laplacian)
+    @assert second_rows == first_rows-2 && second_cols == first_cols-2 "Dimension mismatch after the second laplacian"
+
+    # Assign the result to the initialized output matrix
+    initialized_out_field_data .= second_laplacian
+
+    return initialized_out_field_data
 end
 
 # Setup ------------------------------------------------------------------------------------------------------
@@ -181,20 +205,20 @@ function setup_cartesian_offset_provider()
                     )
 end
 
-function field_increasing_values()
+function field_increasing_values()::Field
     return Field(Cell, collect(1.0:15.0))
 end
 
-function field_decreasing_values()
+function field_decreasing_values()::Field
     return Field(Cell, collect(15.0:-1:1.0))
 end
 
 function constant_cartesian_field()::Field
-    return Field((IDim, JDim), ones(Float64, 8, 8))
+    return Field((IDim, JDim), 2*ones(Float64, 8, 8))
 end
 
 function simple_cartesian_field()::Field
-    return Field((IDim, JDim), [Float64((i-1) * 5 + j-1) for i in 1:5, j in 1:5])
+    return Field((IDim, JDim), [Float64((i-1) * 10 + j-1) for i in 1:10, j in 1:10])
 end
 
     # return Field(Cell, 15.0:-1:1.0) TODO: adjust this computation
@@ -215,15 +239,17 @@ function test_fo_addition(backend::String)
 end
 
 function test_fo_cartesian_offset(backend::String)
-    a = Field(K, collect(1.0:15.0))
-    out_field = Field(K, zeros(Float64, 14)) # field is one smaller since we shift by one
+    a = Field(K, collect(1.0:15.0), origin=Dict(K => 1))
+    # println(GridTools.convert_type(a).domain)
+    out_field = Field(K, zeros(Float64, 15)) # field is one smaller since we shift by one
 
     @field_operator function fo_cartesian_offset(inp::Field{Tuple{K_},Float64})::Field{Tuple{K_},Float64}
         return inp(Koff[1])
     end
 
     fo_cartesian_offset(a, backend=backend, out=out_field, offset_provider=Dict("Koff" => K))
-    @test all(out_field.data .== 2.0:15.0)
+    @test all(out_field.data .== 1.0:15.0)
+    @test axes(out_field) == (1:15,)
 end
 
 function test_fo_scalar_multiplication(backend::String)
@@ -239,8 +265,8 @@ function test_fo_scalar_multiplication(backend::String)
 end
 
 function test_fo_cartesian_offset_composed(backend::String)
-    a = Field(K, collect(1.0:15.0))
-    out_field = Field(K, zeros(Float64, 12)) # field is one smaller since we shift by one
+    a = Field(K, collect(1.0:15.0), origin=Dict(K => 3))
+    out_field = Field(K, zeros(Float64, 15))
 
     @field_operator function fo_cartesian_offset_composed(inp::Field{Tuple{K_},Float64})::Field{Tuple{K_},Float64}
         tmp = inp(Koff[1])
@@ -248,7 +274,8 @@ function test_fo_cartesian_offset_composed(backend::String)
     end
 
     fo_cartesian_offset_composed(a, backend=backend, out=out_field, offset_provider=Dict("Koff" => K))
-    @test all(out_field.data .== 4.0:15.0)
+    @test all(out_field.data .== 1.0:15.0)
+    @test axes(out_field) == (1:15,)
 end
 
 function test_fo_nested_if_else(backend::String)
@@ -512,40 +539,41 @@ end
 
 # Define the Laplacian field operation in the global scope for accessibility across multiple tests.
 @field_operator function lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
-    return -4.0*in_field +
-        in_field(Ioff[1]) +
-        in_field(Ioff[-1]) +
-        in_field(Joff[1]) +
+    return -4.0*in_field .+
+        in_field(Ioff[1]) .+
+        in_field(Ioff[-1]) .+
+        in_field(Joff[1]) .+
         in_field(Joff[-1])
 end
 
 function test_lap(offset_provider::Dict{String, Dimension}, backend::String, field_generator::Function, debug::Bool=false)
-    in_field = field_generator()
+    in_field::Field = field_generator()
     x_length, y_length = size(in_field.data)
-    out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
-    expected_out = lap_reference(in_field.data)
+    out_field = Field((IDim, JDim), ones(Float64, x_length-2, y_length-2), origin=Dict(IDim => 1, JDim => 1)) # Remove the border of size 1 for each side
+    expected_out_data = lap_reference(in_field.data, out_field.data)
 
     lap(in_field, offset_provider=offset_provider, backend=backend, out=out_field)
     
     if debug
         print_debug_info("Input Matrix before applying the laplacian:", in_field.data)
         print_debug_info("Output Matrix after applying lap() operator in the field operator:", out_field.data)
-        print_debug_info("Expected reference of laplacian computation without field operator:", expected_out)
+        print_debug_info("Expected reference of laplacian computation without field operator:", expected_out_data)
         print("\n\n")
     end
 
-    @test out_field.data[2:end-1, 2:end-1] == expected_out[2:end-1, 2:end-1]
-
-    # TODO: add in the future the test for the border values
-    # @test out_field.data[1, :] == expected_out[1, :] && out_field.data[end, :] == expected_out[end, :] \
-    #  out_field.data[:, 1] == expected_out[:, 1] && out_field.data[:, end] == expected_out[:, end]
+    @test size(out_field.data) == size(expected_out_data)
+    @test out_field.data == expected_out_data
+    # If the data is constant, the laplacian computation should return zero
+    if size(in_field.data, 1) > 0 && all(in_field.data .== in_field.data[1])
+        @test all(out_field.data .== 0)
+    end
 end
 
 function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String, field_generator::Function, debug::Bool=false)
     in_field = field_generator()
     x_length, y_length = size(in_field.data)
-    out_field = Field((IDim, JDim), zeros(Float64, x_length, y_length))
-    expected_out = lap_lap_reference(in_field.data)
+    out_field = Field((IDim, JDim), ones(Float64, x_length-4, y_length-4), origin=Dict(IDim => 2, JDim => 2)) # Remove the border of size 2 for each side
+    expected_out_data = lap_lap_reference(in_field.data, out_field.data)
 
     @field_operator function lap_lap(in_field::Field{Tuple{IDim_, JDim_}, Float64})
         return lap(lap(in_field))
@@ -556,12 +584,50 @@ function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String,
     if debug
         print_debug_info("Input Matrix before applying the laplacian of laplacian (lap_lap):", in_field.data)
         print_debug_info("Output Matrix after applying lap(lap()) operator in the field operator:", out_field.data)
-        print_debug_info("Expected reference of lap(lap()) computation without field operator:", expected_out)
+        print_debug_info("Expected reference of lap(lap()) computation without field operator:", expected_out_data)
         print("\n\n")
     end
 
-    @test out_field.data[3:end-2, 3:end-2] == expected_out[3:end-2, 3:end-2]
-    # TODO: add in the future the test for the border values
+    @test size(out_field.data) == size(expected_out_data)
+    @test out_field.data == expected_out_data
+    # If the data is constant, the laplacian computation should return zero
+    if size(in_field.data, 1) > 0 && all(in_field.data .== in_field.data[1])
+        @test all(out_field.data .== 0)
+    end
+end
+
+"""
+    test_slice()
+
+This test checks the `slice` function, which should correctly extract a subset of data from a larger field and properly adjust the origin to reflect the new sliced field's starting point.
+
+# Expected Behavior
+- The sliced data should match the expected subset from the original field.
+- The origin of the sliced field should be adjusted correctly to match the new starting index of the sliced data.
+"""
+function test_slice()
+    a::Field = Field((IDim,), [1; 2; 3; 4; 5])
+    sliced_a = slice(a, 2:4)
+    @test sliced_a.data == [2; 3; 4]
+    @test sliced_a.origin == (2-1,)
+    @test sliced_a.dims == (IDim,)
+end
+
+"""
+    test_slice()
+
+This test checks the `slice` function, which should correctly extract a subset of data from a larger field and properly adjust the origin to reflect the new sliced field's starting point.
+
+# Expected Behavior
+- The sliced data should match the expected subset from the original field.
+- The origin of the sliced field should be adjusted correctly to match the new starting index of the sliced data.
+"""
+function test_slice()
+    a::Field = Field((IDim,), [1; 2; 3; 4; 5])
+    sliced_a = slice(a, 2:4)
+    @test sliced_a.data == [2; 3; 4]
+    @test sliced_a.origin == (2-1,)
+    @test sliced_a.dims == (IDim,)
 end
 
 # Test Executions --------------------------------------------------------------------------------------------
@@ -625,19 +691,19 @@ function test_gt4py_fo_exec()
     testwrapper(nothing, test_nested_fo, "embedded")
     testwrapper(nothing, test_nested_fo, "py")
 
-    # TODO: add support for the embedded backend when the dims is changing due to cartesian offsets
-    # (Note: check the debug flag for pretty printing the outputs)
-    # testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", constant_cartesian_field)
-    testwrapper(setup_cartesian_offset_provider, test_lap, "py", constant_cartesian_field)
+    testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", constant_cartesian_field)
+    # testwrapper(setup_cartesian_offset_provider, test_lap, "py", constant_cartesian_field) # TODO: fix segmentation falut on py backend
 
-    # testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", simple_cartesian_field)
-    testwrapper(setup_cartesian_offset_provider, test_lap, "py", simple_cartesian_field)
+    testwrapper(setup_cartesian_offset_provider, test_lap, "embedded", simple_cartesian_field)
+    # testwrapper(setup_cartesian_offset_provider, test_lap, "py", simple_cartesian_field)
 
-    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", constant_cartesian_field)
-    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", constant_cartesian_field)
+    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", constant_cartesian_field)
+    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", constant_cartesian_field)
     
-    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", simple_cartesian_field)
-    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", simple_cartesian_field)
+    testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", simple_cartesian_field)
+    # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", simple_cartesian_field)
+
+    testwrapper(nothing, test_slice)
 end
 
 @testset "Testset GT2Py fo exec" test_gt4py_fo_exec()
