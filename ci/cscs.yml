@@ -92,9 +92,6 @@ run_tests:
     - LAST_MAIN_COMMIT=$(git rev-parse origin/main)
     - echo "Benchmarking current commit ($CURRENT_COMMIT) in the current branch and ($LAST_MAIN_COMMIT) in the main branch"
     - benchpkg --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --bench-on="$CURRENT_COMMIT" --output-dir=results/ 
-    - mkdir -p plots
-    - echo "Generating plots comparing current commit ($CURRENT_COMMIT) against ($LAST_MAIN_COMMIT) in the main branch"
-    - benchpkgplot GridTools --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
     - echo "Creating benchmark table comparing current commit ($CURRENT_COMMIT) against ($LAST_MAIN_COMMIT) in the main branch"
     - benchpkgtable --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --input-dir=results/ --ratio
   variables:
