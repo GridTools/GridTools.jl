@@ -1,0 +1,89 @@
+stages:
+  - build_base_stage0_image
+  - build_base_stage1_image
+  - build_base_stage2_image
+  - build_image
+  - ci_jobs
+
+variables:
+  GPU_ENABLED: true
+  CUDA_DRIVER_VERSION: "470.57.02"
+  PROJECT_NAME: gridtools_jl
+  PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/pasc_kilos/${CONTAINER_RUNNER}/${PROJECT_NAME}_image:$CI_COMMIT_SHORT_SHA
+  CPU_ARCH: "x86_64_v3"  # use a generic architecture here instead of linux-sles15-haswell, such that it can build on zen2
+
+include:
+  - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
+
+.gt-container-builder:
+  extends: .container-builder
+  timeout: 2h
+  before_script:
+    - DOCKER_TAG=`eval cat $WATCH_FILECHANGES | sha256sum | head -c 16`
+    - |
+      if [[ "$CI_COMMIT_MESSAGE" =~ "Trigger container rebuild $ENV_VAR_NAME" ]]; then
+        echo "Rebuild triggered."
+        export CSCS_REBUILD_POLICY="always"
+      fi
+    - export PERSIST_IMAGE_NAME=$PERSIST_IMAGE_NAME:$DOCKER_TAG
+    - echo "$ENV_VAR_NAME=$PERSIST_IMAGE_NAME" > build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+  variables:
+    # the variables below MUST be set to a sane value. They are mentioned here, to see
+    # which variables should be set.
+    DOCKERFILE: ci/docker/Dockerfile.base # overwrite with the real path of the Dockerfile
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/base/my_base_image # Important: No version-tag
+    WATCH_FILECHANGES: 'ci/docker/Dockerfile.base "path/to/another/file with whitespaces.txt"'
+    ENV_VAR_NAME: BASE_IMAGE
+
+build_base_stage0_image_job:
+  stage: build_base_stage0_image
+  extends: .gt-container-builder
+  variables:
+    DOCKERFILE: docker/base/Dockerfile
+    DOCKER_BUILD_ARGS: '["INSTALL_CUDA_DRIVER=$GPU_ENABLED", "CUDA_DRIVER_VERSION=$CUDA_DRIVER_VERSION", "CPU_ARCH=$CPU_ARCH"]'
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/gridtools/${CONTAINER_RUNNER}/gridtools_jl_base_image
+    WATCH_FILECHANGES: 'docker/base/Dockerfile'
+    ENV_VAR_NAME: BASE_IMAGE_STAGE0
+
+build_base_stage1_image_job:
+  stage: build_base_stage1_image
+  extends: .gt-container-builder
+  variables:
+    DOCKERFILE: docker/base_spack_deps/Dockerfile
+    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE0", "PROJECT_NAME=$PROJECT_NAME", "SPACK_ENV_FILE=spack-${CONTAINER_RUNNER}.yaml"]'
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/gridtools/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_stage1_image
+    WATCH_FILECHANGES: 'docker/base/Dockerfile docker/base_spack_deps/Dockerfile docker/base_spack_deps/spack-daint-p100.yaml'  # TODO: inherit from stage0
+    ENV_VAR_NAME: BASE_IMAGE_STAGE1
+
+build_base_stage2_image_job:
+  stage: build_base_stage2_image
+  extends: .gt-container-builder
+  variables:
+    DOCKERFILE: docker/base_deps/Dockerfile
+    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE1", "PROJECT_NAME=$PROJECT_NAME"]'
+    PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/gridtools/${CONTAINER_RUNNER}/${PROJECT_NAME}_base_stage2_image
+    WATCH_FILECHANGES: 'docker/base/Dockerfile docker/base_spack_deps/Dockerfile docker/base_spack_deps/spack-daint-p100.yaml docker/base_deps/Dockerfile'  # TODO: inherit from stage1
+    ENV_VAR_NAME: BASE_IMAGE_STAGE2
+
+build_image:
+  stage: build_image
+  extends: .container-builder
+  variables:
+    DOCKERFILE: docker/image/Dockerfile
+    DOCKER_BUILD_ARGS: '["BASE_IMAGE=$BASE_IMAGE_STAGE2", "PROJECT_NAME=$PROJECT_NAME"]'
+
+run_tests:
+  stage: ci_jobs
+  image: $PERSIST_IMAGE_NAME
+  extends: .container-runner-daint
+  script:
+    - . /opt/gridtools_jl_env/setup-env.sh
+    - cd /opt/GridTools
+    - julia --project=. -e 'using Pkg; Pkg.test()'
+  variables:
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+    SLURM_TIMELIMIT: "00:30:00"
