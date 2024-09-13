@@ -1,15 +1,16 @@
-name: CI
+name: GridTools Ubuntu CI Pipeline
+
 on:
   push:
     branches:
       - main
     tags: ['*']
   pull_request:
+
 concurrency:
-  # Skip intermediate builds: always.
-  # Cancel intermediate builds: only if it is a pull request build.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -19,36 +20,49 @@ jobs:
       matrix:
         julia_version:
           - '1.8'
-          #- 'nightly'
         python_version:
           - '3.10'
         os:
           - ubuntu-latest
         arch:
           - x64
+
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python ${{ matrix.python_version }}
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python_version }}  # TODO(tehrengruber): cache?
-      - name: Install boost
-        run: sudo apt install libboost-all-dev
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libboost-all-dev
+          python -m pip install --upgrade pip
+
       - name: Install GT4Py
         run: |
-          #git clone https://github.com/GridTools/gt4py.git
           git clone --branch fix_python_interp_path_in_cmake https://github.com/tehrengruber/gt4py.git
           cd gt4py
-          #git checkout 91307b10e2ca1edb76a72cd8a3bebdd66898da60 # TODO(tehrengruber): remove
           pip install -r requirements-dev.txt
           pip install .
+
+      - name: Install atlas4py
+        run: |
+          pip install -i https://test.pypi.org/simple/ atlas4py
+
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia_version }}
           arch: ${{ matrix.arch }}
+
       - uses: julia-actions/cache@v1
+
       - uses: julia-actions/julia-buildpkg@v1
+
       - uses: julia-actions/julia-runtest@v1
+
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         if: always()
