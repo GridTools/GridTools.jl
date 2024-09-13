@@ -82,18 +82,8 @@ run_tests:
   script:
     - . /opt/gridtools_jl_env/setup-env.sh
     - cd /opt/GridTools
-    - julia -e 'using Pkg; Pkg.add("AirspeedVelocity"); Pkg.build("AirspeedVelocity")'
-    - export PATH="\$PATH:\$HOME/.julia/bin"
-    - echo "Updated PATH: \$PATH"
-    - julia --project=. -e 'using Pkg; Pkg.test()'
-    - mkdir -p results
-    - git fetch origin main:refs/remotes/origin/main
-    - CURRENT_COMMIT=$(git rev-parse HEAD)
-    - LAST_MAIN_COMMIT=$(git rev-parse origin/main)
-    - echo "Benchmarking current commit (\$CURRENT_COMMIT) in the current branch and (\$LAST_MAIN_COMMIT) in the main branch"
-    - benchpkg --rev="\$LAST_MAIN_COMMIT,\$CURRENT_COMMIT" --bench-on="\$CURRENT_COMMIT" --output-dir=results/
-    - echo "Creating benchmark table comparing current commit (\$CURRENT_COMMIT) against (\$LAST_MAIN_COMMIT) in the main branch"
-    - benchpkgtable --rev="\$LAST_MAIN_COMMIT,\$CURRENT_COMMIT" --input-dir=results/ --ratio
+    - chmod +x ci/run_airspeedvelocity.sh
+    - ./ci/run_airspeedvelocity.sh
   variables:
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 1
