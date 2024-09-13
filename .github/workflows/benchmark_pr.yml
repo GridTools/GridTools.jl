@@ -67,24 +67,18 @@ jobs:
           echo "Current PATH: $PATH"
           mkdir results
           git fetch origin main:refs/remotes/origin/main
-          if [ $(git rev-list --count HEAD) -gt 1 ]; then
-            PREV_COMMIT=$(git rev-parse HEAD^1)
-          else
-            PREV_COMMIT=$(git rev-parse HEAD)  # Fallback to the current commit if there's no previous commit
-          fi
           CURRENT_COMMIT=$(git rev-parse HEAD)
           LAST_MAIN_COMMIT=$(git rev-parse origin/main)
-          echo "Benchmarking current commit ($CURRENT_COMMIT) against $PREV_COMMIT"
+          echo "Benchmarking current commit ($CURRENT_COMMIT) in the current branch and ($LAST_MAIN_COMMIT) in the main branch"
           benchpkg --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --bench-on="$CURRENT_COMMIT" --output-dir=results/ --tune
         
       - name: Generate and Upload Benchmark Plots
         run: |
           mkdir -p plots
-          LAST_MAIN_COMMIT=$(git rev-parse origin/main)
           CURRENT_COMMIT=$(git rev-parse HEAD)
-          echo "Generating plots comparing CURRENT_COMMIT ($CURRENT_COMMIT) with LAST_MAIN_COMMIT ($LAST_MAIN_COMMIT)"
+          LAST_MAIN_COMMIT=$(git rev-parse origin/main)
+          echo "Generating plots comparing current commit ($CURRENT_COMMIT) against ($LAST_MAIN_COMMIT) in the main branch"
           benchpkgplot GridTools --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --npart=10 --format=png --input-dir=results/ --output-dir=plots/
-        if: always()
       
       - name: Upload Plots as Artifacts
         uses: actions/upload-artifact@v4
@@ -95,20 +89,15 @@ jobs:
       - name: Create and Display Benchmark Table
         run: |
           mkdir -p results
-          if [ $(git rev-list --count HEAD) -gt 1 ]; then
-            PREV_COMMIT=$(git rev-parse HEAD^1)
-          else
-            PREV_COMMIT=$(git rev-parse HEAD)  # Use the current commit as a fallback
-          fi
+          CURRENT_COMMIT=$(git rev-parse HEAD)
           LAST_MAIN_COMMIT=$(git rev-parse origin/main)  # Fetch the latest commit from main for comparison
-          echo "Creating benchmark table comparing CURRENT_COMMIT with LAST_MAIN_COMMIT"
-          benchpkgtable --rev="$LAST_MAIN_COMMIT,$PREV_COMMIT" --input-dir=results/ > table.md
+          echo "Creating benchmark table comparing current commit ($CURRENT_COMMIT) against ($LAST_MAIN_COMMIT) in the main branch"
+          benchpkgtable --rev="$LAST_MAIN_COMMIT,$CURRENT_COMMIT" --input-dir=results/ --ratio > table.md
           echo '### Benchmark Results' > body.md
           cat table.md >> body.md
           echo '### Benchmark Plots' >> body.md
           echo 'A plot of the benchmark results has been uploaded as an artifact to this workflow run.' >> body.md
           cat body.md  # Print the markdown table to the log for review.
-        if: always()
         
       - name: Upload Benchmark Results Table
         uses: actions/upload-artifact@v4
