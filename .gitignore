@@ -18,3 +18,17 @@ docs/build/
 .DS_Store
 
 Manifest.toml
+
+# Python Env
+.venv
+env_setup.sh
+.python-version
+
+# Misc
+**/.DS_Store
+.vscode
+
+# Ignore benchmark (benchpkg) results
+results_GridTools@*
+plot_*.png
+plot_*.pdf

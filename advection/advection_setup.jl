@@ -1,55 +1,26 @@
-# Advection Miniapp
-# This script demonstrates an advection simulation using the Atlas library.
+# Advection Setup
+# This script demonstrates the setup of an advection simulation using the Atlas library.
 
 using Printf
-using Debugger
 using Statistics
-using Profile
 using GridTools
-
-const global VISUALIZATION_FLAG::Bool=false
-
-# Mesh Definitions --------------------------------------------------------------------------------------------
-# Define dimensions for the mesh
-Cell_ = Dimension{:Cell_, HORIZONTAL}
-Edge_ = Dimension{:Edge_, HORIZONTAL}
-Vertex_ = Dimension{:Vertex_, HORIZONTAL}
-K_ = Dimension{:K_, VERTICAL}
-V2VDim_ = Dimension{:V2V_, LOCAL}
-V2EDim_ = Dimension{:V2E_, LOCAL}
-E2VDim_ = Dimension{:E2V_, LOCAL}
-
-# Instantiate dimension objects
-Cell = Cell_()
-K = K_()
-Edge = Edge_()
-Vertex = Vertex_()
-V2VDim = V2VDim_()
-V2EDim = V2EDim_()
-E2VDim = E2VDim_()
-
-# Define field offsets to describe the relationships between different dimensions
-V2V = FieldOffset("V2V", source = Vertex, target = (Vertex, V2VDim))
-E2V = FieldOffset("E2V", source = Vertex, target = (Edge, E2VDim))
-V2E = FieldOffset("V2E", source = Edge, target = (Vertex, V2EDim))
-Koff = FieldOffset("Koff", source = K, target = K)
+using GridTools.ExampleMeshes.Unstructured
+using GridTools.AtlasMeshes
 
 # Include additional necessary files for mesh, state container, metric calculations, and advection operations
-include("../src/atlas/atlas_mesh.jl")
 include("state_container.jl")
 include("metric.jl")
 include("advection.jl")
-include("visualization_utils.jl")
 
 # Grid and Mesh Initialization --------------------------------------------------------------------------------
 # Create a structured grid and mesh for the simulation
-grid = atlas.StructuredGrid("O50")
+grid = atlas.StructuredGrid("O90")
 mesh = AtlasMesh(grid, num_level = 30)
 
 # Simulation Parameters ---------------------------------------------------------------------------------------
 δt = 1800.0  # time step in s
 niter = 50
-ε = 1.0e-8
+ϵ = 1.0e-8
 
 # Calculate metric properties from the mesh
 metric = m_from_mesh(mesh)
@@ -188,53 +159,3 @@ nabla_z(
     out = tmp_fields["tmp_vertex_2"],
     offset_provider = mesh.offset_provider
 )
-
-if VISUALIZATION_FLAG
-    # Precompute the mapping between the unstructured domain to the structured one for ASCII art visualization
-    grid_size = 50
-    mapping = precompute_mapping(mesh, xlim, ylim, grid_size)
-end
-
-# Main Simulation Loop ----------------------------------------------------------------------------------------
-for i = 1:niter
-    # Perform the upwind advection scheme to update the scalar field (rho)
-    upwind_scheme(
-        state.rho,
-        δt,
-        mesh.vol,
-        metric.gac,
-        state.vel[1],
-        state.vel[2],
-        state.vel[3],
-        mesh.pole_edge_mask,
-        mesh.dual_face_orientation,
-        mesh.dual_face_normal_weighted_x,
-        mesh.dual_face_normal_weighted_y,
-        out = state_next.rho,
-        offset_provider = mesh.offset_provider
-    )
-
-    # Print the current timestep
-    println("Timestep $i")
-
-    if VISUALIZATION_FLAG
-        # Print the current state as ASCII art every 5 timesteps
-        print_state_ascii(state, mesh, mapping, i, grid_size)
-    end
-
-    # TODO: make a function out of this switch
-    # Swap the current and next state
-    temp = state
-    global state = state_next
-    global state_next = temp
-
-    # Update the periodic boundary layers
-    update_periodic_layers(mesh, state.rho)
-end
-
-# Output the final statistics for the scalar field (rho) and velocity fields
-println(
-    "min max sum of final rho = $(minimum(state.rho.data)) , $(maximum(state.rho.data)) , $(sum(state.rho.data))"
-)
-println("Final Vel0 sum after $niter iterations: $(sum(state.vel[1].data))")
-println("Final Vel1 sum after $niter iterations: $(sum(state.vel[2].data))")

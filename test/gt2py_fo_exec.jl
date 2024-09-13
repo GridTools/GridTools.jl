@@ -564,6 +564,23 @@ function test_lap_lap(offset_provider::Dict{String, Dimension}, backend::String,
     # TODO: add in the future the test for the border values
 end
 
+"""
+    test_slice()
+
+This test checks the `slice` function, which should correctly extract a subset of data from a larger field and properly adjust the origin to reflect the new sliced field's starting point.
+
+# Expected Behavior
+- The sliced data should match the expected subset from the original field.
+- The origin of the sliced field should be adjusted correctly to match the new starting index of the sliced data.
+"""
+function test_slice()
+    a::Field = Field((IDim,), [1; 2; 3; 4; 5])
+    sliced_a = slice(a, 2:4)
+    @test sliced_a.data == [2; 3; 4]
+    @test sliced_a.origin == (2-1,)
+    @test sliced_a.dims == (IDim,)
+end
+
 # Test Executions --------------------------------------------------------------------------------------------
 
 function test_gt4py_fo_exec()
@@ -638,6 +655,8 @@ function test_gt4py_fo_exec()
     
     # testwrapper(setup_cartesian_offset_provider, test_lap_lap, "embedded", simple_cartesian_field)
     testwrapper(setup_cartesian_offset_provider, test_lap_lap, "py", simple_cartesian_field)
+
+    testwrapper(nothing, test_slice)
 end
 
 @testset "Testset GT2Py fo exec" test_gt4py_fo_exec()
