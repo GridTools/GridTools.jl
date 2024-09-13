@@ -6,11 +6,10 @@
     level_indices::Field{Tuple{K_}, Int64},
     num_level::Int64
 )::Field{Tuple{Vertex_, K_}, Float64}
-
     return where(
-        level_indices .== num_level - 1,
+        level_indices .== 0,
         lower,
-        where(slice(level_indices .== 0, 1:29), upper, interior)
+        where(slice(level_indices .== 29, 2:30), upper, interior)
     )
 end
 
@@ -149,7 +148,8 @@ end
 )::Field{Tuple{Vertex_, K_}, Float64}
     zrhin =
         (1.0 ./ vol) .* neighbor_sum(
-            -min.(0.0, flux(V2E)) .* max.(0.0, dual_face_orientation) -
+            # TODO: fix the 0-min workaround due to the binary/unary operation issue
+            (broadcast(0., (Vertex, V2EDim, K)) .- min.(0.0, flux(V2E))) .* max.(0.0, dual_face_orientation) -
             max.(0.0, flux(V2E)) .* min.(0.0, dual_face_orientation),
             axis = V2EDim,
         )
@@ -227,15 +227,6 @@ end
     dual_face_orientation::Field{Tuple{Vertex_, V2EDim_}, Float64},
     dual_face_normal_weighted_x::Field{Tuple{Edge_}, Float64},
     dual_face_normal_weighted_y::Field{Tuple{Edge_}, Float64},
-    tmp_vertex_1::Field{Tuple{Vertex_, K_}, Float64},
-    tmp_vertex_2::Field{Tuple{Vertex_, K_}, Float64},
-    tmp_vertex_3::Field{Tuple{Vertex_, K_}, Float64},
-    tmp_vertex_4::Field{Tuple{Vertex_, K_}, Float64},
-    tmp_vertex_5::Field{Tuple{Vertex_, K_}, Float64},
-    tmp_vertex_6::Field{Tuple{Vertex_, K_}, Float64},
-    tmp_edge_1::Field{Tuple{Edge_, K_}, Float64},
-    tmp_edge_2::Field{Tuple{Edge_, K_}, Float64},
-    tmp_edge_3::Field{Tuple{Edge_, K_}, Float64},
 )
 
     tmp_edge_1 = advector_normal(

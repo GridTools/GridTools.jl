@@ -9,7 +9,7 @@ using Profile
 using Base: @propagate_inbounds
 using MacroTools
 using OffsetArrays: IdOffsetRange
-using Debugger
+using CUDA
 
 import Base.Broadcast: Extruded, Style, BroadcastStyle, ArrayStyle, Broadcasted
 
@@ -156,6 +156,30 @@ julia> field = Field(Cell, ones(5))
 
 julia> field(E2C)
 julia> field(E2C[1])
+```
+
+GPU arrays are supported too.
+
+# Examples
+```julia-repl
+julia> using GridTools
+
+julia> using CUDA: CuArray
+
+julia> using GridTools.ExampleMeshes.Unstructured
+
+       # Create a CuArray of data on the GPU
+
+julia> gpu_data = CuArray(reshape(collect(1.0:12.0), (3, 4)));
+
+       # Create a Field passing data in the CuArray type
+
+julia> gpu_field = Field((Cell,K), gpu_data);
+
+       # Check the type
+
+julia> Base.typeof(gpu_field.data)
+CuArray{Float64, 2, CUDA.DeviceMemory}
 ```
 """
 struct Field{
@@ -475,6 +499,7 @@ Base.convert(t::Type{T}, F::Field) where {T <: Number} =
     inds::Vararg{Int, N}
 ) where {BD, T, N}
     new_inds = inds .- F.origin
+    # @assert Tuple(1 for i in 1:length(new_inds)) <= new_inds <= size(F.data) "Error: $new_inds, $(size(F.data)), $(F.origin)"
     return F.data[new_inds...]
 end
 @propagate_inbounds function Base.setindex!(
@@ -488,8 +513,9 @@ end
 Base.showarg(io::IO, @nospecialize(F::Field), toplevel) =
     print(io, eltype(F), " Field with dimensions ", get_dim_name.(F.broadcast_dims))
 function slice(F::Field, inds...)::Field
+    @assert all(typeof(x) <: UnitRange{Int64} for x in inds) # TODO: understand why the line below is filtering the UnitRange only
     dim_ind = findall(x -> typeof(x) <: UnitRange{Int64}, inds)
-    return Field(F.dims[dim_ind], view(F.data, inds...), F.broadcast_dims)
+    return Field(F.dims[dim_ind], view(F.data, inds...), F.broadcast_dims, origin=Dict(d=>ind[1]-1 for (d,ind) in zip(F.dims, inds)))
 end
 
 # Connectivity struct ------------------------------------------------------------
@@ -561,7 +587,6 @@ function (fo::FieldOp)(
     out = nothing,
     kwargs...
 )
-
     is_outermost_fo = isnothing(OFFSET_PROVIDER)
     if is_outermost_fo
         @assert !isnothing(out) "Must provide an out field."
@@ -609,6 +634,20 @@ function backend_execution(
     end
 end
 
+# It is not currently working in all edge cases
+function check_gpu_data(args::Tuple)::nothing
+    has_CuArray::Bool = false
+    for (i, arg) in enumerate(args)
+        if arg !== nothing && typeof(arg) <: AbstractArray && typeof(arg.data) <: CuArray
+            has_CuArray = true
+        end
+
+        if has_CuArray
+            throw(ArgumentError("GPU Arrays (CuArray) are not supported by the Python backend. Error found in argument #$i: $(typeof(arg.data))."))
+        end
+    end
+end
+
 function backend_execution(
     backend::Val{:py},
     fo::FieldOp,
@@ -624,6 +663,7 @@ function backend_execution(
         f = py_field_operator(fo)
         FIELD_OPERATORS[fo.name] = f
     end
+    # check_gpu_data(args) # TODO: throw an exception in case of gpu arrays passed to the python backend
     p_args, p_kwargs, p_out, p_offset_provider =
         py_args.((args, kwargs, out, GridTools.OFFSET_PROVIDER))
     if is_outermost_fo
@@ -705,7 +745,7 @@ macro module_vars()
                 name => Core.eval(Base, name) for
                 name in [:Int64, :Int32, :Float32, :Float64]
             )
-            all_names = names(@__MODULE__)
+            all_names = names(@__MODULE__, all=true)
             used_modules = ccall(:jl_module_usings, Any, (Any,), @__MODULE__)
             for m in used_modules
                 append!(all_names, names(m))
@@ -757,5 +797,6 @@ end
 generate_unique_name(name::Symbol, value::Integer = 0) = Symbol("$(name)ᐞ$(value)")
 
 include("ExampleMeshes.jl")
+include("atlas/AtlasMeshes.jl")
 
 end

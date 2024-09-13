@@ -1,8 +1,31 @@
+# setup_benchmark_interactive.jl
+
+# This script is intended for interactive usage during development and benchmarking sessions.
+# It sets up a Julia environment with necessary packages and predefined functions for running various benchmarks.
+# This allows developers to interactively profile and debug performance issues in real-time.
+#
+# Usage Example:
+# Start Julia with the appropriate project settings and thread configuration:
+# $ julia --project=. --threads 8
+#
+# Inside the Julia REPL, load the benchmark setup:
+# julia> include("setup_benchmark_interactive.jl")
+# This will load all necessary modules and display the current thread usage.
+#
+# To run and profile a specific operation, use:
+# julia> a, out = single_field_setup(STREAM_SIZE)
+# julia> @profile fo_sin(a, backend="embedded", out=out)
+# This will profile the `fo_sin` operation and print profiling results.
+
+include("../../advection/advection_setup.jl") 
+
 using BenchmarkTools
 using Statistics
 using GridTools
 using GridTools.ExampleMeshes.Unstructured
 using GridTools.ExampleMeshes.Cartesian
+using Profile
+using Base.Threads
 
 # Data size
 const global STREAM_SIZE = 10_000_000
@@ -270,116 +293,7 @@ The summation is performed across the dimension specified by `E2CDim`, ensuring 
     return neighbor_sum(a(E2C), axis=E2CDim)
 end
 
-# Benchmarks -------------------------------------------------------------------------------------------------
-
-# Create the benchmark SUITE
-SUITE = BenchmarkGroup()
-
-# Define the main groups
-SUITE["addition"] = BenchmarkGroup()
-
-# Julia broadcast addition benchmark
-a, b, data_size = array_broadcast_addition_setup(STREAM_SIZE)
-SUITE["addition"]["array_broadcast_addition"] = @benchmarkable broadcast_addition_array(a, b) setup=((a, b, data_size) = $array_broadcast_addition_setup($STREAM_SIZE); ) #a=$a; b=$b)
-
-# Field broadcast addition benchmark
-a, b, out = fields_broadcast_addition_setup(STREAM_SIZE)
-SUITE["addition"]["fields_broadcast_addition"] = @benchmarkable broadcast_addition_fields($a, $b)
-
-# Field Operator broadcast addition benchmark
-a, b, out = fields_broadcast_addition_setup(STREAM_SIZE)
-SUITE["addition"]["field_op_broadcast_addition"] = @benchmarkable $fo_addition($a, $b, backend="embedded", out=$out)
-
-# Sine without field operator benchmark
-a, out = single_field_setup(STREAM_SIZE)
-SUITE["trigonometry"]["sin"] = @benchmarkable sin_without_fo($a)
-
-# Field operator sine benchmark
-a, out = single_field_setup(STREAM_SIZE)
-SUITE["trigonometry"]["field_op_sin"] = @benchmarkable $fo_sin($a, backend="embedded", out=$out)
-
-# Cosine without field operator benchmark
-a, out = single_field_setup(STREAM_SIZE)
-SUITE["trigonometry"]["cos"] = @benchmarkable cos_without_fo($a)
-
-# Field operator cosine benchmark
-a, out = single_field_setup(STREAM_SIZE)
-SUITE["trigonometry"]["field_op_cos"] = @benchmarkable $fo_cos($a, backend="embedded", out=$out)
-
-# Benchmark the field remapping operation
-offset_provider = create_large_connectivity(STREAM_SIZE)
-a, out = single_field_setup(STREAM_SIZE)
-SUITE["remapping"]["field_operator"] = 
-    @benchmarkable $fo_remapping($a, offset_provider=$offset_provider, backend="embedded", out=$out)
-
-# Benchmark the field neighbor sum operation
-offset_provider = create_large_connectivity(STREAM_SIZE)
-a, out = single_field_setup(STREAM_SIZE)
-SUITE["neighbor_sum"]["field_operator"] = 
-    @benchmarkable $fo_neighbor_sum($a, offset_provider=$offset_provider, backend="embedded", out=$out)
-
-# Run the benchmark SUITE
-println("Running the benchmark SUITE...")
-results = run(SUITE)
-
-# Process the results
-array_results = results["addition"]["array_broadcast_addition"]
-fields_results = results["addition"]["fields_broadcast_addition"]
-fo_results = results["addition"]["field_op_broadcast_addition"]
-sin_results = results["trigonometry"]["sin"]
-fo_sin_results = results["trigonometry"]["field_op_sin"]
-cos_results = results["trigonometry"]["cos"]
-fo_cos_results = results["trigonometry"]["field_op_cos"]
-remapping_results = results["remapping"]["field_operator"]
-neighbor_sum_results = results["neighbor_sum"]["field_operator"]
-
-# Compute memory bandwidth
-array_bandwidth, data_size_arr = compute_memory_bandwidth_addition(array_results, a, b, a) # Out is a temporary array with size equal to the size of a
-fields_bandwidth, data_size_fields = compute_memory_bandwidth_addition(fields_results, a, b, a)
-fo_bandwidth, data_size_fo = compute_memory_bandwidth_addition(fo_results, a, b, out)
-
-sin_bandwidth = compute_memory_bandwidth_single(sin_results, a)
-fo_sin_bandwidth = compute_memory_bandwidth_single(fo_sin_results, a)
-cos_bandwidth = compute_memory_bandwidth_single(cos_results, a)
-fo_cos_bandwidth = compute_memory_bandwidth_single(fo_cos_results, a)
-
-# Function to convert nanoseconds to milliseconds for clearer output
-ns_to_ms(time_ns) = time_ns / 1e6
-
-# Process and print the results along with the time taken for each
-println("Array broadcast addition:")
-println("\tData size: $data_size_arr")
-println("\tBandwidth: $array_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(array_results.times))) ms\n")
-
-println("Fields data broadcast addition:")
-println("\tData size: $data_size_fields")
-println("\tBandwidth: $fields_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(fields_results.times))) ms\n")
-
-println("Field Operator broadcast addition:")
-println("\tData size: $data_size_fo")
-println("\tBandwidth: $fo_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(fo_results.times))) ms\n")
-
-println("Sine operation (no field operator):")
-println("\tBandwidth: $sin_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(sin_results.times))) ms\n")
-
-println("Field Operator sine operation:")
-println("\tBandwidth: $fo_sin_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(fo_sin_results.times))) ms\n")
-
-println("Cosine operation (no field operator):")
-println("\tBandwidth: $cos_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(cos_results.times))) ms\n")
-
-println("Field Operator cosine operation:")
-println("\tBandwidth: $fo_cos_bandwidth GB/s")
-println("\tTime taken: $(ns_to_ms(median(fo_cos_results.times))) ms\n")
-
-println("Field Operator Remapping:")
-println("\tTime taken: $(ns_to_ms(median(remapping_results.times))) ms\n")
-
-println("Field Operator Neighbor Sum:")
-println("\tTime taken: $(ns_to_ms(median(neighbor_sum_results.times))) ms\n")
+# Start ------------------------------------------------------------------------------------------------------
+println("Current number of threads: ", Threads.nthreads())
+println("The environment is ready\n")
+Profile.clear()

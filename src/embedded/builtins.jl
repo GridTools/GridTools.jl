@@ -40,17 +40,31 @@ function min_over(field_in::Field; axis::Dimension)::Field
     return reduction_master(field_in, axis, minimum)
 end
 
+"""
+    reduction_master(field_in::Field, axis::Dimension, f::Function)::Field
 
+Performs a reduction operation (`sum`, `minimum`, `maximum`, etc.) over a specific axis dimension.
+This version supports both CPU and GPU fields.
+"""
 function reduction_master(field_in::Field, axis::Dimension, f::Function)
     neutral_el = get_neutral(f, eltype(field_in))
     dim = get_dim_ind(field_in.dims, axis)
 
     conn = OFFSET_PROVIDER[get_dim_name(axis)]
-    data = dropdims(
-        f(ifelse.(conn.data .!= -1, field_in.data, neutral_el), dims = dim),
-        dims = dim
-    )
-    return Field((field_in.dims[1:dim-1]..., field_in.dims[dim+1:end]...), data)
+
+    if isa(field_in.data, CuArray)
+        # GPU version using CUDA parallelization
+        reduced_data = CUDA.fill(neutral_el, size(field_in.data))
+        CUDA.@sync reduced_data .= f(ifelse.(conn.data .!= -1, field_in.data, neutral_el), dims = dim)
+        reduced_data = dropdims(reduced_data, dims = dim)
+    else
+        # CPU version
+        reduced_data = dropdims(
+            f(ifelse.(conn.data .!= -1, field_in.data, neutral_el), dims = dim),
+            dims = dim
+        )
+    end
+    return Field((field_in.dims[1:dim-1]..., field_in.dims[dim+1:end]...), reduced_data)
 end
 
 get_neutral(f::typeof(sum), type::DataType) = convert(type, 0)

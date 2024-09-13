@@ -1,3 +1,6 @@
+
+using Base.Threads: @threads
+
 Base.BroadcastStyle(::Type{<:Field}) = Broadcast.ArrayStyle{Field}()
 
 # TODO(tehrengruber): Implement a range with an attached dimension instead of this single object
@@ -66,7 +69,7 @@ function get_size_ifelse(mask::FieldShape, branch::FieldShape)
     out_size = [branch.axes...]
     ind_mask = findall(x -> x in branch.dims, mask.dims)
     ind_out = findall(x -> x in mask.dims, branch.dims)
-
+    # TODO: this is not correct if the mask has an origin
     out_size[ind_out] .= mask.axes[ind_mask]
 
     return FieldShape(branch.dims, Tuple(out_size), branch.broadcast_dims)
@@ -230,15 +233,42 @@ end
 
 # -----------------------------------------------------------------------------------------------------------------------------------------
 
+function is_gpu_compatible(bc::Broadcasted{ArrayStyle{Field}})::Bool
+    is_all_CuArray::Bool = false
+    has_CuArray::Bool = false
+    has_CPUArray::Bool = false
+
+    for arg in bc.args
+        if typeof(arg) <: AbstractArray
+            # Check if the argument is a CuArray
+            if typeof(arg.data) <: CuArray
+                has_CuArray = true
+                is_all_CuArray = true
+            # Check if the argument is a CPU array
+            elseif typeof(arg.data) <: Vector
+                has_CPUArray = true
+            end
+        end
+
+        # If both a CuArray and a CPU Array are present, raise an error
+        if has_CuArray && has_CPUArray
+            throw(ErrorException("Cannot have both CuArray and CPU arrays in the same args."))
+        end
+    end
+
+    return is_all_CuArray
+end
+
 # Creates uninitialized output object
 function Base.similar(bc::Broadcasted{ArrayStyle{Field}}, ::Type{ElType}) where {ElType}
     offsets = getproperty.(axes(bc), :start) .- 1
+    is_cuarray::Bool = is_gpu_compatible(bc)
     Field(
-        bc.axes.dims,
-        similar(Array{ElType}, getproperty.(axes(bc), :stop) .- offsets),
-        bc.axes.broadcast_dims,
-        offsets
-    )
+            bc.axes.dims,
+            similar(is_cuarray ? CuArray{ElType} : Array{ElType}, getproperty.(axes(bc), :stop) .- offsets),
+            bc.axes.broadcast_dims,
+            offsets
+        )
 end
 
 # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -249,17 +279,31 @@ end
     if axes(dest) == axes(bc) && bc.f === identity && bc.args isa Tuple{AbstractArray} # only a single input argument to broadcast!
         A = bc.args[1]
         if axes(dest) == axes(A)
-            return copyto!(dest, A)
+            if isa(A.data, CuArray)
+                return CUDA.copyto!(dest.data, A.data) # Use @GPUArrays copyto!
+            else
+                return copyto!(dest, A)
+            end
         end
     end
 
-    bc′ = Base.Broadcast.preprocess(shape(dest), bc)
+    if isa(dest.data, CuArray)
+        # Extract the function and the arguments from the broadcasted expression
+        f = bc.f
+        args = bc.args
 
-    # Performance may vary depending on whether `@inbounds` is placed outside the
-    # for loop or not. (cf. https://github.com/JuliaLang/julia/issues/38086)
-    @inbounds @simd for I in eachindex(dest)
-        dest[I] = bc′[I]
+        # Apply the function f element-wise to the arguments and store the result in dest.data
+        CUDA.map!(f, dest.data, map(arg -> arg.data, args)...)
+    else
+        bc′ = Base.Broadcast.preprocess(shape(dest), bc)
+
+        # Performance may vary depending on whether `@inbounds` is placed outside the
+        # for loop or not. (cf. https://github.com/JuliaLang/julia/issues/38086)
+        @inbounds @simd for I in eachindex(dest)
+            dest[I] = bc′[I]
+        end
     end
+    
     return dest
 end
 
